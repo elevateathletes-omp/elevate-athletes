@@ -190,7 +190,19 @@ a{color:inherit;text-decoration:none}
 .empty-state p{font-size:14px}
 
 /* Exercise note */
-.ex-note{font-size:11px;color:var(--txt3);font-style:italic;padding:4px 10px 8px;border-left:2px solid var(--border2);margin-left:10px}
+.ex-note{font-size:11px;color:var(--txt3);font-style:italic;padding:4px 16px 10px;border-left:2px solid var(--border2);margin:0 16px 0}
+.ex-card{border-bottom:1px solid var(--border)}
+.ex-card:last-child{border-bottom:none}
+.ex-header{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;gap:8px;-webkit-tap-highlight-color:transparent}
+.ex-header:active{background:var(--bg4)}
+.ex-name{font-weight:600;font-size:14px;display:block}
+.ex-meta{font-size:11px;color:var(--txt2);display:block;margin-top:3px}
+.ex-chevron{flex-shrink:0;margin-top:2px;transition:transform .2s;color:var(--txt3)}
+.ex-card.collapsed .ex-chevron{transform:rotate(-90deg)}
+.ex-card.collapsed .ex-body{display:none}
+.ex-series-header{display:grid;grid-template-columns:36px 1fr 1fr 1fr;gap:8px;padding:6px 16px;font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;background:var(--bg4)}
+.ex-series-row{display:grid;grid-template-columns:36px 1fr 1fr 1fr;gap:8px;padding:8px 16px;align-items:center;border-top:1px solid var(--border)}
+.ex-series-row input{width:100%;min-width:0}
 
 /* Pulse animation for sync indicator */
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -310,20 +322,7 @@ a{color:inherit;text-decoration:none}
             <span style="font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:.05em" id="session-name-label">SESIÓN</span>
             <span class="badge badge-blue" id="session-sets-label">0 series</span>
           </div>
-          <div style="overflow-x:auto">
-            <table class="data-table" id="exercise-table">
-              <thead>
-                <tr>
-                  <th style="min-width:110px">Ejercicio</th>
-                  <th style="min-width:60px">Objetivo</th>
-                  <th style="min-width:56px">Kg</th>
-                  <th style="min-width:48px">Reps</th>
-                  <th style="min-width:44px">RIR</th>
-                </tr>
-              </thead>
-              <tbody id="exercise-tbody"></tbody>
-            </table>
-          </div>
+          <div id="exercise-list"></div>
         </div>
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
           <div class="form-group" style="margin:0">
@@ -1058,9 +1057,9 @@ function renderEntreno() {
     sel.appendChild(opt);
   });
 
-  // Limpia la tabla si había sesión anterior
+  // Limpia la lista si había sesión anterior
   wrap.style.display = 'none';
-  document.getElementById('exercise-tbody').innerHTML = '';
+  document.getElementById('exercise-list').innerHTML = '';
   document.getElementById('tonelaje-display').textContent = '0 kg';
 }
 
@@ -1077,40 +1076,48 @@ function loadSession() {
   const totalSeries = session.exercises.reduce((a, e) => a + e.sets, 0);
   document.getElementById('session-sets-label').textContent = totalSeries + ' series';
 
-  const tbody = document.getElementById('exercise-tbody');
-  tbody.innerHTML = '';
+  const list = document.getElementById('exercise-list');
+  list.innerHTML = '';
 
   session.exercises.forEach((ex, ei) => {
+    let seriesHTML = `
+      <div class="ex-series-header">
+        <span>Serie</span><span>Kg</span><span>Reps</span><span>RIR</span>
+      </div>`;
     for (let s = 0; s < ex.sets; s++) {
-      const isFirst = s === 0;
-      const tr = document.createElement('tr');
-
-      // Fila con el nombre del ejercicio (solo primera serie) + objetivos
-      const exCell = isFirst
-        ? `<span style="font-weight:600">${ex.name}</span>
-           ${ex.notas ? `<div class="ex-note">💡 ${ex.notas}</div>` : ''}`
-        : `<span style="font-size:11px;color:var(--txt3)">Serie ${s + 1}</span>`;
-
-      const objetivo = isFirst
-        ? `<span style="color:var(--txt2);font-size:12px">${ex.reps} reps<br>RIR ${ex.rir}</span>`
-        : `<span style="color:var(--txt3);font-size:11px">—</span>`;
-
-      tr.innerHTML = `
-        <td>${exCell}</td>
-        <td style="text-align:center;white-space:nowrap">${objetivo}</td>
-        <td><input type="number" placeholder="—" min="0" max="500" step="0.5"
-          data-ex="${ei}" data-set="${s}" data-field="kg" data-exname="${ex.name}"
-          oninput="calcTonelaje()" style="width:56px"></td>
-        <td><input type="number" placeholder="—" min="0" max="50"
-          data-ex="${ei}" data-set="${s}" data-field="reps2"
-          oninput="calcTonelaje()" style="width:48px"></td>
-        <td><input type="number" placeholder="—" min="0" max="5"
-          data-ex="${ei}" data-set="${s}" data-field="rir"
-          style="width:44px"></td>`;
-      tbody.appendChild(tr);
+      seriesHTML += `
+        <div class="ex-series-row">
+          <span class="ex-series-label" style="font-size:12px;color:var(--txt2)">S${s + 1}</span>
+          <input type="number" placeholder="—" min="0" max="500" step="0.5"
+            data-ex="${ei}" data-set="${s}" data-field="kg" data-exname="${ex.name}"
+            oninput="calcTonelaje()">
+          <input type="number" placeholder="—" min="0" max="50"
+            data-ex="${ei}" data-set="${s}" data-field="reps2"
+            oninput="calcTonelaje()">
+          <input type="number" placeholder="—" min="0" max="5"
+            data-ex="${ei}" data-set="${s}" data-field="rir">
+        </div>`;
     }
+
+    const card = document.createElement('div');
+    card.className = 'ex-card';
+    card.innerHTML = `
+      <div class="ex-header" onclick="toggleEx(this.closest('.ex-card'))">
+        <div style="min-width:0">
+          <span class="ex-name">${ex.name}</span>
+          <span class="ex-meta">${ex.sets} series · ${ex.reps} reps · RIR ${ex.rir}${ex.descanso ? ' · ' + ex.descanso : ''}</span>
+        </div>
+        <svg class="ex-chevron" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      ${ex.notas ? `<div class="ex-note">💡 ${ex.notas}</div>` : ''}
+      <div class="ex-body">${seriesHTML}</div>`;
+    list.appendChild(card);
   });
   calcTonelaje();
+}
+
+function toggleEx(card) {
+  card.classList.toggle('collapsed');
 }
 
 function calcTonelaje() {
