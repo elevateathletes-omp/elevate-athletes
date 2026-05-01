@@ -203,6 +203,10 @@ a{color:inherit;text-decoration:none}
 .ex-series-header{display:grid;grid-template-columns:36px 1fr 1fr 1fr;gap:8px;padding:6px 16px;font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;background:var(--bg4)}
 .ex-series-row{display:grid;grid-template-columns:36px 1fr 1fr 1fr;gap:8px;padding:8px 16px;align-items:center;border-top:1px solid var(--border)}
 .ex-series-row input{width:100%;min-width:0}
+.ex-series-row.done{background:rgba(0,180,0,0.06)}
+.ex-series-row.done .ex-series-label{color:var(--green);font-weight:700}
+.ex-series-row.done input{opacity:0.55}
+.ex-prev{font-size:10px;color:var(--txt3);display:block;margin-top:3px}
 
 /* Pulse animation for sync indicator */
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -335,6 +339,11 @@ a{color:inherit;text-decoration:none}
             Guardar sesión
           </button>
         </div>
+      </div>
+
+      <div id="historial-entreno-wrap" style="padding:0 16px;margin-top:16px;display:none">
+        <div class="section-title" style="padding:0 0 8px">Historial de sesiones</div>
+        <div id="historial-entreno-list"></div>
       </div>
     </div>
 
@@ -545,10 +554,12 @@ const STATE = {
   sessionsLoaded:    false,
   sessions:          [],
   peso:              [],
-  lastFeedback:      null,   // último check-in guardado {energia, recuperacion, sueno, dieta, bienestar, motivacion}
+  lastFeedback:      null,
   training:          [],
   mediciones:        [],
-  tonelaje_semanal:  [],     // [{semana, kg}] — agregado por semana del mesociclo
+  tonelaje_semanal:  [],
+  lastSessionData:   {},     // {sesion: {ejercicio: {fecha, sets:[{serie,kg,reps}]}}}
+  historialEntreno:  [],     // [{fecha, sesion, tonelaje}] últimas 10 sesiones
 };
 
 // Sesiones de ejemplo mientras se cargan desde Sheets (o si falla la conexión)
@@ -917,6 +928,21 @@ async function loadFromSheets() {
         STATE.tonelaje_semanal = data.tonelaje_semanal;
       }
 
+      // ── Último feedback ──────────────────────────────────────
+      if (data.historial && data.historial.feedback) {
+        STATE.lastFeedback = data.historial.feedback;
+      }
+
+      // ── Última sesión por ejercicio ──────────────────────────
+      if (data.lastSessionData) {
+        STATE.lastSessionData = data.lastSessionData;
+      }
+
+      // ── Historial de entrenamientos ──────────────────────────
+      if (data.historialEntreno && data.historialEntreno.length > 0) {
+        STATE.historialEntreno = data.historialEntreno;
+      }
+
       // Refresca pantallas con datos actualizados
       renderDashboard();
       if (document.getElementById('screen-entreno').classList.contains('active'))    renderEntreno();
@@ -1061,6 +1087,8 @@ function renderEntreno() {
   wrap.style.display = 'none';
   document.getElementById('exercise-list').innerHTML = '';
   document.getElementById('tonelaje-display').textContent = '0 kg';
+
+  renderHistorialEntreno();
 }
 
 function loadSession() {
@@ -1078,23 +1106,38 @@ function loadSession() {
 
   const list = document.getElementById('exercise-list');
   list.innerHTML = '';
+  const sessionPrev = STATE.lastSessionData[id] || {};
 
   session.exercises.forEach((ex, ei) => {
+    const prevEx = sessionPrev[ex.name];
+
+    // Línea de referencia a sesión anterior
+    let prevHTML = '';
+    if (prevEx && prevEx.sets.length > 0) {
+      const setsStr = prevEx.sets.map(s => `S${s.serie} ${s.kg}×${s.reps}`).join(' · ');
+      prevHTML = `<span class="ex-prev">Ant (${prevEx.fecha}): ${setsStr}</span>`;
+    }
+
     let seriesHTML = `
       <div class="ex-series-header">
         <span>Serie</span><span>Kg</span><span>Reps</span><span>RIR</span>
       </div>`;
+
     for (let s = 0; s < ex.sets; s++) {
+      const prevSet  = prevEx?.sets.find(ps => ps.serie === s + 1);
+      const defaultKg   = prevSet?.kg   || '';
+      const defaultReps = prevSet?.reps  || parseUpperReps(ex.reps);
       seriesHTML += `
-        <div class="ex-series-row">
-          <span class="ex-series-label" style="font-size:12px;color:var(--txt2)">S${s + 1}</span>
-          <input type="number" placeholder="—" min="0" max="500" step="0.5"
+        <div class="ex-series-row" data-rowkey="${ei}_${s}">
+          <span class="ex-series-label" style="font-size:12px;color:var(--txt2);cursor:pointer"
+            onclick="toggleSerie(this.closest('.ex-series-row'))">S${s + 1}</span>
+          <input type="number" placeholder="kg" min="0" max="500" step="0.5"
             data-ex="${ei}" data-set="${s}" data-field="kg" data-exname="${ex.name}"
-            oninput="calcTonelaje()">
-          <input type="number" placeholder="—" min="0" max="50"
+            value="${defaultKg}" oninput="calcTonelaje()">
+          <input type="number" placeholder="reps" min="0" max="50"
             data-ex="${ei}" data-set="${s}" data-field="reps2"
-            oninput="calcTonelaje()">
-          <input type="number" placeholder="—" min="0" max="5"
+            value="${defaultReps}" oninput="calcTonelaje()">
+          <input type="number" placeholder="RIR" min="0" max="5"
             data-ex="${ei}" data-set="${s}" data-field="rir">
         </div>`;
     }
@@ -1106,6 +1149,7 @@ function loadSession() {
         <div style="min-width:0">
           <span class="ex-name">${ex.name}</span>
           <span class="ex-meta">${ex.sets} series · ${ex.reps} reps · RIR ${ex.rir}${ex.descanso ? ' · ' + ex.descanso : ''}</span>
+          ${prevHTML}
         </div>
         <svg class="ex-chevron" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
@@ -1113,7 +1157,76 @@ function loadSession() {
       <div class="ex-body">${seriesHTML}</div>`;
     list.appendChild(card);
   });
+
+  // Restaurar borrador de hoy si existe
+  if (loadDraft(id)) {
+    toast('Borrador restaurado ✓');
+  }
   calcTonelaje();
+}
+
+function parseUpperReps(str) {
+  const m = String(str).match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (m) return parseInt(m[2]);
+  const n = String(str).match(/\d+/);
+  return n ? parseInt(n[0]) : '';
+}
+
+function toggleSerie(row) {
+  row.classList.toggle('done');
+  saveDraft();
+}
+
+function saveDraft() {
+  const id = document.getElementById('session-select').value;
+  if (!id) return;
+  const inputs = {};
+  document.querySelectorAll('[data-ex][data-set][data-field]').forEach(el => {
+    if (el.value !== '') inputs[`${el.dataset.ex}_${el.dataset.set}_${el.dataset.field}`] = el.value;
+  });
+  const done = [];
+  document.querySelectorAll('.ex-series-row.done').forEach(row => done.push(row.dataset.rowkey));
+  localStorage.setItem(`ea_draft_${CONFIG.CLIENT_ID}_${id}`, JSON.stringify({
+    date: new Date().toISOString().split('T')[0], inputs, done,
+  }));
+}
+
+function loadDraft(sessionId) {
+  const raw = localStorage.getItem(`ea_draft_${CONFIG.CLIENT_ID}_${sessionId}`);
+  if (!raw) return false;
+  const { date, inputs, done } = JSON.parse(raw);
+  if (date !== new Date().toISOString().split('T')[0]) {
+    localStorage.removeItem(`ea_draft_${CONFIG.CLIENT_ID}_${sessionId}`);
+    return false;
+  }
+  let restored = 0;
+  Object.keys(inputs).forEach(key => {
+    const parts = key.split('_');
+    const field = parts[2], ex = parts[0], set = parts[1];
+    const el = document.querySelector(`[data-ex="${ex}"][data-set="${set}"][data-field="${field}"]`);
+    if (el) { el.value = inputs[key]; restored++; }
+  });
+  (done || []).forEach(key => {
+    const row = document.querySelector(`.ex-series-row[data-rowkey="${key}"]`);
+    if (row) row.classList.add('done');
+  });
+  return restored > 0;
+}
+
+function renderHistorialEntreno() {
+  const wrap = document.getElementById('historial-entreno-wrap');
+  const list = document.getElementById('historial-entreno-list');
+  if (!wrap || !list) return;
+  if (!STATE.historialEntreno.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  list.innerHTML = STATE.historialEntreno.map(s => `
+    <div class="card" style="padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:600;font-size:13px">${s.sesion}</div>
+        <div style="font-size:11px;color:var(--txt3)">${s.fecha}</div>
+      </div>
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--red)">${(s.tonelaje/1000).toFixed(1)}T</div>
+    </div>`).join('');
 }
 
 function toggleEx(card) {
@@ -1127,6 +1240,7 @@ function calcTonelaje() {
     total += (parseFloat(kg.value) || 0) * (parseFloat(repsEl?.value) || 0);
   });
   document.getElementById('tonelaje-display').textContent = total.toFixed(0) + ' kg';
+  saveDraft();
 }
 
 async function saveTraining() {
@@ -1153,6 +1267,7 @@ async function saveTraining() {
     date:    new Date().toISOString().split('T')[0],
     rows,
   });
+  localStorage.removeItem(`ea_draft_${CONFIG.CLIENT_ID}_${id}`);
   toast('Sesión guardada correctamente');
 }
 

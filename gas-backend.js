@@ -141,6 +141,8 @@ function doGet(e) {
         config:           getConfig(ss, clientId).config,
         historial:        getHistorial(ss, clientId),
         tonelaje_semanal: getTonelajeSemanal(ss, clientId),
+        lastSessionData:  getAllLastSessionData(ss, clientId),
+        historialEntreno: getHistorialEntreno(ss, clientId),
       });
     }
   } catch(err) {
@@ -196,7 +198,7 @@ function getSesiones(ss, clientId) {
 // Devuelve el historial de peso (últimas 60 entradas) y las mediciones
 // (últimas 12 entradas) para que la app muestre datos reales del cliente.
 function getHistorial(ss, clientId) {
-  const result = { peso: [], mediciones: [] };
+  const result = { peso: [], mediciones: [], feedback: null };
 
   // ── Peso ─────────────────────────────────────────────────────
   const sheetPeso = ss.getSheetByName(`${clientId}_Peso`);
@@ -236,6 +238,17 @@ function getHistorial(ss, clientId) {
     result.mediciones = data;
   }
 
+  // ── Último feedback ──────────────────────────────────────────
+  const sheetFb = ss.getSheetByName(`${clientId}_Feedback`);
+  if (sheetFb && sheetFb.getLastRow() > 1) {
+    const fbRows = sheetFb.getDataRange().getValues();
+    const last = fbRows[fbRows.length - 1];
+    result.feedback = {
+      energia: last[1], recuperacion: last[2], sueno: last[3],
+      dieta: last[4], bienestar: last[5], motivacion: last[6],
+    };
+  }
+
   return result;
 }
 
@@ -263,6 +276,67 @@ function getConfig(ss, clientId) {
     if (key) config[String(key).trim()] = value;
   });
   return { ok: true, config };
+}
+
+// ── getAllLastSessionData ─────────────────────────────────────
+// Para cada (sesión, ejercicio) devuelve los sets de la última fecha.
+// Resultado: { 'TORSO 1': { 'Press Banca': { fecha, sets:[{serie,kg,reps}] } } }
+function getAllLastSessionData(ss, clientId) {
+  const sheet = ss.getSheetByName(`${clientId}_Entreno`);
+  if (!sheet || sheet.getLastRow() < 2) return {};
+
+  const rows = sheet.getDataRange().getValues().slice(1).filter(r => r[0] && r[2]);
+  if (rows.length === 0) return {};
+
+  const data = {};
+  rows.forEach(r => {
+    const fecha    = Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const sesion   = String(r[1]);
+    const ejercicio = String(r[2]);
+    const serie    = parseInt(r[3]);
+    const kg       = parseFloat(r[4]) || 0;
+    const reps     = parseFloat(r[5]) || 0;
+    if (!data[sesion]) data[sesion] = {};
+    if (!data[sesion][ejercicio]) data[sesion][ejercicio] = {};
+    if (!data[sesion][ejercicio][fecha]) data[sesion][ejercicio][fecha] = [];
+    data[sesion][ejercicio][fecha].push({ serie, kg, reps });
+  });
+
+  const result = {};
+  Object.keys(data).forEach(sesion => {
+    result[sesion] = {};
+    Object.keys(data[sesion]).forEach(ejercicio => {
+      const dates   = Object.keys(data[sesion][ejercicio]).sort();
+      const lastDate = dates[dates.length - 1];
+      result[sesion][ejercicio] = {
+        fecha: lastDate,
+        sets:  data[sesion][ejercicio][lastDate].sort((a, b) => a.serie - b.serie),
+      };
+    });
+  });
+  return result;
+}
+
+// ── getHistorialEntreno ───────────────────────────────────────
+// Últimas 10 sesiones distintas con fecha, nombre y tonelaje total.
+function getHistorialEntreno(ss, clientId) {
+  const sheet = ss.getSheetByName(`${clientId}_Entreno`);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  const rows = sheet.getDataRange().getValues().slice(1).filter(r => r[0] && r[1]);
+  const byKey = {};
+  rows.forEach(r => {
+    const fecha  = Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const sesion = String(r[1]);
+    const key    = `${fecha}__${sesion}`;
+    if (!byKey[key]) byKey[key] = { fecha, sesion, tonelaje: 0 };
+    byKey[key].tonelaje += parseFloat(r[7]) || 0;
+  });
+
+  return Object.values(byKey)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    .slice(0, 10)
+    .map(s => ({ ...s, tonelaje: Math.round(s.tonelaje) }));
 }
 
 // ── getTonelajeSemanal ────────────────────────────────────────
