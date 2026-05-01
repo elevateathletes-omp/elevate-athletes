@@ -712,13 +712,15 @@ function renderDashboard() {
   document.getElementById('dash-athlete-name').textContent = 'Cliente · ' + CONFIG.CLIENT_ID;
   document.getElementById('dash-mc').textContent = STATE.athlete.microciclo;
 
-  const pesos = DEMO.peso;
+  const pesos = getPesoData();
   const ultimosPesos = pesos.slice(-7);
-  const prom = (ultimosPesos.reduce((a,b) => a + b.kg, 0) / ultimosPesos.length).toFixed(1);
+  const prom = ultimosPesos.length
+    ? (ultimosPesos.reduce((a,b) => a + b.kg, 0) / ultimosPesos.length).toFixed(1)
+    : '—';
   const promAnterior = pesos.slice(-14, -7);
   const promAnt = promAnterior.length ? (promAnterior.reduce((a,b)=>a+b.kg,0)/promAnterior.length).toFixed(1) : null;
-  document.getElementById('dash-peso').textContent = prom + ' kg';
-  if (promAnt) {
+  document.getElementById('dash-peso').textContent = prom !== '—' ? prom + ' kg' : '—';
+  if (promAnt && prom !== '—') {
     const d = (prom - promAnt).toFixed(1);
     const cl = d < 0 ? 'delta-down' : d > 0 ? 'delta-up' : 'delta-flat';
     document.getElementById('dash-peso-delta').innerHTML = `<span class="${cl}">${d > 0 ? '+' : ''}${d} kg vs semana ant.</span>`;
@@ -820,7 +822,7 @@ function drawRadar() {
 function drawWeightTrend() {
   const canvas = document.getElementById('weight-chart');
   const ctx = canvas.getContext('2d');
-  const pesos = DEMO.peso;
+  const pesos = getPesoData();
   const W = canvas.offsetWidth || 280;
   canvas.width = W;
   const H = canvas.height;
@@ -864,11 +866,16 @@ function drawWeightTrend() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// HELPERS — datos reales si disponibles, demo como fallback
+// ═══════════════════════════════════════════════════════════════
+function getPesoData()      { return STATE.peso.length       > 0 ? STATE.peso       : DEMO.peso; }
+function getMedicionesData(){ return STATE.mediciones.length > 0 ? STATE.mediciones : DEMO.mediciones; }
+
+// ═══════════════════════════════════════════════════════════════
 // CARGA DINÁMICA DESDE SHEETS
 // ═══════════════════════════════════════════════════════════════
 async function loadFromSheets() {
   if (CONFIG.GAS_URL === 'TU_GAS_URL_AQUI') {
-    // Modo demo: usa fallback sin intentar conectar
     STATE.sessions = FALLBACK_SESSIONS;
     STATE.sessionsLoaded = true;
     return;
@@ -881,42 +888,50 @@ async function loadFromSheets() {
     const data = await res.json();
 
     if (data.ok) {
-      // Sesiones
-      if (data.sesiones && data.sesiones.length > 0) {
-        STATE.sessions = data.sesiones;
-      } else {
-        STATE.sessions = [];   // entrenador aún no las ha configurado
+      // ── Sesiones ────────────────────────────────────────────
+      STATE.sessions = (data.sesiones && data.sesiones.length > 0)
+        ? data.sesiones
+        : [];
+
+      // ── Config del atleta ────────────────────────────────────
+      const cfg = data.config || {};
+      if (cfg.nombre)         STATE.athlete.nombre          = cfg.nombre;
+      if (cfg.microciclo)     STATE.athlete.microciclo      = parseInt(cfg.microciclo);
+      if (cfg.kcal_entreno)   DEMO.macros.entreno.kcal      = parseInt(cfg.kcal_entreno);
+      if (cfg.prot_entreno)   DEMO.macros.entreno.prot      = parseInt(cfg.prot_entreno);
+      if (cfg.carbs_entreno)  DEMO.macros.entreno.carbs     = parseInt(cfg.carbs_entreno);
+      if (cfg.fat_entreno)    DEMO.macros.entreno.fat       = parseInt(cfg.fat_entreno);
+      if (cfg.kcal_descanso)  DEMO.macros.descanso.kcal     = parseInt(cfg.kcal_descanso);
+      if (cfg.prot_descanso)  DEMO.macros.descanso.prot     = parseInt(cfg.prot_descanso);
+      if (cfg.carbs_descanso) DEMO.macros.descanso.carbs    = parseInt(cfg.carbs_descanso);
+      if (cfg.fat_descanso)   DEMO.macros.descanso.fat      = parseInt(cfg.fat_descanso);
+
+      // ── Historial de peso ────────────────────────────────────
+      if (data.historial && data.historial.peso && data.historial.peso.length > 0) {
+        STATE.peso = data.historial.peso;        // [{fecha, kg}, ...]
       }
 
-      // Config del atleta
-      const cfg = data.config || {};
-      if (cfg.nombre)        STATE.athlete.nombre     = cfg.nombre;
-      if (cfg.microciclo)    STATE.athlete.microciclo = parseInt(cfg.microciclo);
-      if (cfg.kcal_entreno)  DEMO.macros.entreno.kcal  = parseInt(cfg.kcal_entreno);
-      if (cfg.prot_entreno)  DEMO.macros.entreno.prot  = parseInt(cfg.prot_entreno);
-      if (cfg.carbs_entreno) DEMO.macros.entreno.carbs = parseInt(cfg.carbs_entreno);
-      if (cfg.fat_entreno)   DEMO.macros.entreno.fat   = parseInt(cfg.fat_entreno);
-      if (cfg.kcal_descanso)  DEMO.macros.descanso.kcal  = parseInt(cfg.kcal_descanso);
-      if (cfg.prot_descanso)  DEMO.macros.descanso.prot  = parseInt(cfg.prot_descanso);
-      if (cfg.carbs_descanso) DEMO.macros.descanso.carbs = parseInt(cfg.carbs_descanso);
-      if (cfg.fat_descanso)   DEMO.macros.descanso.fat   = parseInt(cfg.fat_descanso);
+      // ── Historial de mediciones ──────────────────────────────
+      if (data.historial && data.historial.mediciones && data.historial.mediciones.length > 0) {
+        STATE.mediciones = data.historial.mediciones;
+      }
 
-      // Refresca el dashboard con los datos actualizados
+      // Refresca pantallas con datos actualizados
       renderDashboard();
+      if (document.getElementById('screen-peso').classList.contains('active'))       renderPeso();
+      if (document.getElementById('screen-mediciones').classList.contains('active')) renderMediciones();
+
     } else {
-      // Error de GAS → fallback
       STATE.sessions = FALLBACK_SESSIONS;
     }
   } catch (_) {
-    // Sin conexión → fallback
     STATE.sessions = FALLBACK_SESSIONS;
-    toast('Sin conexión — usando datos locales', 'err');
+    toast('Sin conexión — usando datos demo', 'err');
   }
 
   STATE.sessionsLoaded = true;
   setSyncIndicator(false);
 
-  // Si el usuario ya está en la pantalla de entreno, actualiza el selector
   if (document.getElementById('screen-entreno').classList.contains('active')) {
     renderEntreno();
   }
@@ -1129,7 +1144,7 @@ function renderPeso() {
 
   const tbody = document.getElementById('peso-tbody');
   tbody.innerHTML = '';
-  const sorted = [...DEMO.peso].reverse();
+  const sorted = [...getPesoData()].sort((a,b) => b.fecha.localeCompare(a.fecha));
   sorted.forEach((p, i) => {
     const prev = sorted[i+1];
     const delta = prev ? (p.kg - prev.kg).toFixed(1) : '—';
@@ -1148,7 +1163,7 @@ function renderPeso() {
 function drawPesoChart() {
   const canvas = document.getElementById('peso-chart');
   const ctx = canvas.getContext('2d');
-  const pesos = DEMO.peso;
+  const pesos = [...getPesoData()].sort((a,b) => a.fecha.localeCompare(b.fecha));
   const W = canvas.offsetWidth || 280;
   canvas.width = W;
   const H = canvas.height;
@@ -1350,31 +1365,75 @@ function renderMediciones() {
 
   // Progresión vs inicial
   const container = document.getElementById('med-progress-container');
-  container.innerHTML = DEMO.mediciones.map(m => {
-    const delta = (m.actual - m.inicial).toFixed(1);
-    const isPositive = parseFloat(delta) > 0;
-    const pct = Math.abs(parseFloat(delta)) / m.inicial * 100;
-    // Para cintura, cadera, grasa: bajar es positivo. Para pecho, bíceps, muslo: subir es positivo.
-    const growthMetrics = ['Pecho','Bíceps','Muslo','Gemelo','Hombros'];
-    const goodDelta = growthMetrics.includes(m.label) ? isPositive : !isPositive;
-    const unit = m.unidad || 'cm';
+
+  const CAMPOS_MED = [
+    { key: 'peso',    label: 'Peso',     unidad: 'kg', growth: false },
+    { key: 'grasa',   label: '% Grasa',  unidad: '%',  growth: false },
+    { key: 'cintura', label: 'Cintura',  unidad: 'cm', growth: false },
+    { key: 'cadera',  label: 'Cadera',   unidad: 'cm', growth: false },
+    { key: 'pecho',   label: 'Pecho',    unidad: 'cm', growth: true  },
+    { key: 'hombros', label: 'Hombros',  unidad: 'cm', growth: true  },
+    { key: 'biceps',  label: 'Bíceps',   unidad: 'cm', growth: true  },
+    { key: 'muslo',   label: 'Muslo',    unidad: 'cm', growth: false },
+    { key: 'gemelo',  label: 'Gemelo',   unidad: 'cm', growth: true  },
+  ];
+
+  function buildMedCard(label, unidad, growth, ini, act) {
+    const delta    = (act - ini).toFixed(1);
+    const isPos    = parseFloat(delta) > 0;
+    const goodDelta = growth ? isPos : !isPos;
+    const pct      = ini !== 0 ? Math.abs(parseFloat(delta)) / ini * 100 : 0;
     return `
       <div class="card" style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600">${m.label}</span>
+          <span style="font-weight:600">${label}</span>
           <span class="badge ${goodDelta ? 'badge-green' : 'badge-red'}">
-            ${isPositive ? '+' : ''}${delta} ${unit}
+            ${isPos ? '+' : ''}${delta} ${unidad}
           </span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txt2);margin-bottom:6px">
-          <span>Inicial: ${m.inicial} ${unit}</span>
-          <span>Actual: ${m.actual} ${unit}</span>
+          <span>Inicial: ${ini} ${unidad}</span>
+          <span>Actual: ${act} ${unidad}</span>
         </div>
         <div class="prog-wrap">
           <div class="prog-bar ${goodDelta ? 'green' : ''}" style="width:${Math.min(pct * 10, 100)}%"></div>
         </div>
       </div>`;
-  }).join('');
+  }
+
+  if (STATE.mediciones.length >= 2) {
+    // Datos reales de Sheets: comparar primera vs última medición
+    const sorted = [...STATE.mediciones].sort((a,b) => a.fecha.localeCompare(b.fecha));
+    const first  = sorted[0];
+    const last   = sorted[sorted.length - 1];
+    const cards  = CAMPOS_MED
+      .map(c => {
+        const ini = parseFloat(first[c.key]);
+        const act = parseFloat(last[c.key]);
+        if (isNaN(ini) || isNaN(act) || ini === 0) return '';
+        return buildMedCard(c.label, c.unidad, c.growth, ini, act);
+      })
+      .filter(Boolean)
+      .join('');
+    container.innerHTML = `
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txt3);padding:0 4px;margin-bottom:8px">
+        <span>Medición inicial: ${first.fecha}</span>
+        <span>Última: ${last.fecha}</span>
+      </div>
+      ${cards || '<div class="card"><div class="empty-state"><p>Sin datos suficientes para mostrar progresión.</p></div></div>'}`;
+
+  } else if (STATE.mediciones.length === 1) {
+    container.innerHTML = `<div class="card"><div class="empty-state" style="padding:32px 24px">
+      <p style="color:var(--txt2)">Solo hay 1 medición registrada.</p>
+      <p style="font-size:12px;margin-top:6px">Añade una segunda medición para ver la progresión.</p>
+    </div></div>`;
+
+  } else {
+    // Fallback con datos demo
+    container.innerHTML = DEMO.mediciones.map(m =>
+      buildMedCard(m.label, m.unidad || 'cm', ['Pecho','Bíceps','Muslo','Gemelo','Hombros'].includes(m.label), m.inicial, m.actual)
+    ).join('');
+  }
 }
 
 async function saveMedicion() {

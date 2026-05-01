@@ -131,12 +131,16 @@ function doGet(e) {
     if (action === 'getConfig') {
       return jsonResponse(getConfig(ss, clientId));
     }
+    if (action === 'getHistorial') {
+      return jsonResponse(getHistorial(ss, clientId));
+    }
     if (action === 'getAll') {
-      // Llamada única que devuelve sesiones + config juntos
+      // Llamada única que devuelve sesiones + config + historial
       return jsonResponse({
-        ok:       true,
-        sesiones: getSesiones(ss, clientId).sessions,
-        config:   getConfig(ss, clientId).config,
+        ok:        true,
+        sesiones:  getSesiones(ss, clientId).sessions,
+        config:    getConfig(ss, clientId).config,
+        historial: getHistorial(ss, clientId),
       });
     }
   } catch(err) {
@@ -184,6 +188,53 @@ function getSesiones(ss, clientId) {
     ok: true,
     sessions: sessionOrder.map(k => sessionMap[k]),
   };
+}
+
+// ── getHistorial ──────────────────────────────────────────────
+// Devuelve el historial de peso (últimas 60 entradas) y las mediciones
+// (últimas 12 entradas) para que la app muestre datos reales del cliente.
+function getHistorial(ss, clientId) {
+  const result = { peso: [], mediciones: [] };
+
+  // ── Peso ─────────────────────────────────────────────────────
+  const sheetPeso = ss.getSheetByName(`${clientId}_Peso`);
+  if (sheetPeso && sheetPeso.getLastRow() > 1) {
+    const rows = sheetPeso.getDataRange().getValues();
+    // Columnas: Fecha | Peso (kg) | Timestamp
+    const data = rows.slice(1)
+      .filter(r => r[0] && r[1])
+      .map(r => ({
+        fecha: Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+        kg:    parseFloat(r[1]),
+      }))
+      .filter(r => !isNaN(r.kg))
+      .slice(-60);   // últimas 60 entradas
+    result.peso = data;
+  }
+
+  // ── Mediciones ───────────────────────────────────────────────
+  const sheetMed = ss.getSheetByName(`${clientId}_Mediciones`);
+  if (sheetMed && sheetMed.getLastRow() > 1) {
+    const rows = sheetMed.getDataRange().getValues();
+    // Columnas: Fecha | Peso | % Grasa | Cintura | Cadera | Pecho |
+    //           Hombros | Bíceps | Muslo | Gemelo | Comentarios | Timestamp
+    const headers = ['fecha','peso','grasa','cintura','cadera','pecho','hombros','biceps','muslo','gemelo','comentarios'];
+    const data = rows.slice(1)
+      .filter(r => r[0])
+      .map(r => {
+        const obj = {};
+        headers.forEach((h, i) => {
+          obj[h] = (i === 0)
+            ? Utilities.formatDate(new Date(r[i]), Session.getScriptTimeZone(), 'yyyy-MM-dd')
+            : (r[i] !== '' ? r[i] : null);
+        });
+        return obj;
+      })
+      .slice(-12);   // últimas 12 mediciones
+    result.mediciones = data;
+  }
+
+  return result;
 }
 
 // ── getConfig ─────────────────────────────────────────────────
