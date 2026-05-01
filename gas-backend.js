@@ -135,12 +135,12 @@ function doGet(e) {
       return jsonResponse(getHistorial(ss, clientId));
     }
     if (action === 'getAll') {
-      // Llamada única que devuelve sesiones + config + historial
       return jsonResponse({
-        ok:        true,
-        sesiones:  getSesiones(ss, clientId).sessions,
-        config:    getConfig(ss, clientId).config,
-        historial: getHistorial(ss, clientId),
+        ok:               true,
+        sesiones:         getSesiones(ss, clientId).sessions,
+        config:           getConfig(ss, clientId).config,
+        historial:        getHistorial(ss, clientId),
+        tonelaje_semanal: getTonelajeSemanal(ss, clientId),
       });
     }
   } catch(err) {
@@ -263,6 +263,33 @@ function getConfig(ss, clientId) {
     if (key) config[String(key).trim()] = value;
   });
   return { ok: true, config };
+}
+
+// ── getTonelajeSemanal ────────────────────────────────────────
+// Lee _Entreno, agrupa el tonelaje por semana relativa al primer
+// entreno y devuelve [{semana, kg}] ordenado.
+function getTonelajeSemanal(ss, clientId) {
+  const sheet = ss.getSheetByName(`${clientId}_Entreno`);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  // Columnas: Fecha(0) Sesión(1) Ejercicio(2) Serie(3) Kg(4) Reps(5) RIR(6) Tonelaje(7)
+  const rows = sheet.getDataRange().getValues().slice(1)
+    .filter(r => r[0] && r[7] !== '' && !isNaN(parseFloat(r[7])));
+
+  if (rows.length === 0) return [];
+
+  const firstMs = new Date(rows[0][0]).getTime();
+  const byWeek  = {};
+
+  rows.forEach(r => {
+    const week = Math.floor((new Date(r[0]).getTime() - firstMs) / (7 * 86400000)) + 1;
+    byWeek[week] = (byWeek[week] || 0) + (parseFloat(r[7]) || 0);
+  });
+
+  return Object.keys(byWeek)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(w => ({ semana: w, kg: Math.round(byWeek[w]) }));
 }
 
 // ── Helpers ───────────────────────────────────────────────────

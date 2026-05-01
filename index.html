@@ -262,6 +262,15 @@ a{color:inherit;text-decoration:none}
         </div>
       </div>
 
+      <div class="section-title">Evolución de tonelaje</div>
+      <div class="pad">
+        <div class="card">
+          <div class="chart-wrap" style="padding:0">
+            <canvas id="tonnage-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
       <div class="section-title">Accesos rápidos</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px">
         <button class="btn btn-secondary btn-sm" onclick="goTo('entreno')">
@@ -560,14 +569,15 @@ const CONFIG = {
 // ESTADO LOCAL
 // ═══════════════════════════════════════════════════════════════
 const STATE = {
-  athlete:        { nombre: 'Atleta', microciclo: 1 },
-  diaType:        'entreno',
-  sessionsLoaded: false,   // true cuando se hayan cargado desde Sheets (o fallback)
-  sessions:       [],      // se llena con loadFromSheets() o con FALLBACK_SESSIONS
-  peso:           [],
-  feedback:       [],
-  training:       [],
-  mediciones:     [],
+  athlete:           { nombre: 'Atleta', microciclo: 1 },
+  diaType:           'entreno',
+  sessionsLoaded:    false,
+  sessions:          [],
+  peso:              [],
+  lastFeedback:      null,   // último check-in guardado {energia, recuperacion, sueno, dieta, bienestar, motivacion}
+  training:          [],
+  mediciones:        [],
+  tonelaje_semanal:  [],     // [{semana, kg}] — agregado por semana del mesociclo
 };
 
 // Sesiones de ejemplo mientras se cargan desde Sheets (o si falla la conexión)
@@ -644,6 +654,16 @@ const DEMO = {
     { name: 'Omega-3 (IFOS)',       dosis: '1-2 g EPA+DHA',  cuando: 'Noche con cena' },
     { name: 'Magnesio bisglicinato',dosis: '300 mg',          cuando: 'Antes de dormir' },
     { name: 'Cafeína',              dosis: '200 mg',          cuando: 'Pre-entreno (sin tomar tarde)' },
+  ],
+  tonelaje_semanal: [
+    { semana: 1, kg: 3800 },
+    { semana: 2, kg: 4150 },
+    { semana: 3, kg: 4400 },
+    { semana: 4, kg: 4700 },
+    { semana: 5, kg: 4850 },
+    { semana: 6, kg: 5100 },
+    { semana: 7, kg: 5350 },
+    { semana: 8, kg: 5600 },
   ],
   mediciones: [
     { label: 'Cintura',  inicial: 82,   actual: 79,   unidad: 'cm' },
@@ -726,23 +746,28 @@ function renderDashboard() {
     document.getElementById('dash-peso-delta').innerHTML = `<span class="${cl}">${d > 0 ? '+' : ''}${d} kg vs semana ant.</span>`;
   }
 
-  const fb = DEMO.feedback;
-  const vals = Object.values(fb);
+  const fb = STATE.lastFeedback || DEMO.feedback;
+  const vals = [fb.energia, fb.recuperacion, fb.sueno, fb.dieta, fb.bienestar, fb.motivacion];
   const avg = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
   document.getElementById('dash-bienestar').textContent = avg + '/10';
   const label = avg >= 7.5 ? '🟢 Excelente' : avg >= 5.5 ? '🟡 Aceptable' : '🔴 Difícil';
   document.getElementById('dash-bienestar-label').textContent = label;
 
-  const ton = DEMO.tonelaje;
-  document.getElementById('dash-tonelaje').textContent = (ton.actual/1000).toFixed(1) + 'T';
-  const d = ((ton.actual - ton.anterior)/ton.anterior*100).toFixed(1);
-  const tonEl = document.getElementById('dash-tonelaje-delta');
-  tonEl.innerHTML = `<span class="${d > 0 ? 'delta-up' : 'delta-down'}">${d > 0 ? '+' : ''}${d}% vs MC ant.</span>`;
+  const tonData = STATE.tonelaje_semanal.length > 0 ? STATE.tonelaje_semanal : DEMO.tonelaje_semanal;
+  const lastTon = tonData[tonData.length - 1];
+  const prevTon = tonData[tonData.length - 2];
+  document.getElementById('dash-tonelaje').textContent = lastTon ? (lastTon.kg/1000).toFixed(1) + 'T' : '—';
+  if (lastTon && prevTon) {
+    const td = ((lastTon.kg - prevTon.kg)/prevTon.kg*100).toFixed(1);
+    document.getElementById('dash-tonelaje-delta').innerHTML =
+      `<span class="${td > 0 ? 'delta-up' : 'delta-down'}">${td > 0 ? '+' : ''}${td}% vs sem. ant.</span>`;
+  }
 
   document.getElementById('dash-adherencia').textContent = fb.dieta + '/10';
 
   drawRadar();
   drawWeightTrend();
+  drawTonelajeChart();
 }
 
 function drawRadar() {
@@ -754,7 +779,8 @@ function drawRadar() {
   ctx.clearRect(0, 0, W, H);
 
   const labels = ['Energía','Recuperación','Sueño','Dieta','Bienestar','Motivación'];
-  const values = Object.values(DEMO.feedback);
+  const fb = STATE.lastFeedback || DEMO.feedback;
+  const values = [fb.energia, fb.recuperacion, fb.sueno, fb.dieta, fb.bienestar, fb.motivacion];
   const N = labels.length;
 
   for (let level = 2; level <= 10; level += 2) {
@@ -916,6 +942,11 @@ async function loadFromSheets() {
         STATE.mediciones = data.historial.mediciones;
       }
 
+      // ── Tonelaje semanal ─────────────────────────────────────
+      if (data.tonelaje_semanal && data.tonelaje_semanal.length > 0) {
+        STATE.tonelaje_semanal = data.tonelaje_semanal;
+      }
+
       // Refresca pantallas con datos actualizados
       renderDashboard();
       if (document.getElementById('screen-entreno').classList.contains('active'))    renderEntreno();
@@ -948,6 +979,71 @@ function setSyncIndicator(active) {
     document.getElementById('sync-label').textContent = 'sincronizado';
     setTimeout(() => { ind.style.display = 'none'; }, 2000);
   }
+}
+
+function drawTonelajeChart() {
+  const canvas = document.getElementById('tonnage-chart');
+  if (!canvas) return;
+  const data = STATE.tonelaje_semanal.length > 0 ? STATE.tonelaje_semanal : DEMO.tonelaje_semanal;
+  if (data.length < 2) {
+    canvas.parentElement.innerHTML = '<div class="empty-state" style="padding:32px"><p>Sin datos suficientes</p></div>';
+    return;
+  }
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.parentElement.clientWidth || 320;
+  const H   = 150;
+  canvas.width  = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { top: 20, right: 16, bottom: 28, left: 44 };
+  const cW  = W - pad.left - pad.right;
+  const cH  = H - pad.top  - pad.bottom;
+  const vals = data.map(d => d.kg);
+  const minV = Math.min(...vals) * 0.92;
+  const maxV = Math.max(...vals) * 1.05;
+  const toX  = i => pad.left + i * (cW / (data.length - 1));
+  const toY  = v => pad.top + cH - ((v - minV) / (maxV - minV)) * cH;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  [0, 0.5, 1].forEach(t => {
+    const y = pad.top + cH * t;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
+  });
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+  grad.addColorStop(0, 'rgba(180,0,30,0.3)');
+  grad.addColorStop(1, 'rgba(180,0,30,0)');
+  ctx.beginPath();
+  data.forEach((d, i) => { i === 0 ? ctx.moveTo(toX(i), toY(d.kg)) : ctx.lineTo(toX(i), toY(d.kg)); });
+  ctx.lineTo(toX(data.length - 1), pad.top + cH);
+  ctx.lineTo(toX(0), pad.top + cH);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  data.forEach((d, i) => { i === 0 ? ctx.moveTo(toX(i), toY(d.kg)) : ctx.lineTo(toX(i), toY(d.kg)); });
+  ctx.strokeStyle = '#B4001E'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Dots + X labels
+  data.forEach((d, i) => {
+    const x = toX(i), y = toY(d.kg);
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#B4001E'; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '9px system-ui';
+    ctx.textAlign = 'center'; ctx.fillText('S' + d.semana, x, H - 6);
+  });
+
+  // Y labels
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '9px system-ui'; ctx.textAlign = 'right';
+  const fmt = v => v >= 1000 ? (v / 1000).toFixed(1) + 'T' : Math.round(v) + '';
+  ctx.fillText(fmt(maxV), pad.left - 4, pad.top + 4);
+  ctx.fillText(fmt(minV + (maxV - minV) * 0.5), pad.left - 4, pad.top + cH * 0.5 + 4);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1130,11 +1226,13 @@ async function saveFeedback() {
   data.comments = document.getElementById('feedback-comments').value;
   data.date = new Date().toISOString().split('T')[0];
   await postToSheets('saveFeedback', data);
+  STATE.lastFeedback = { energia: data.energia, recuperacion: data.recuperacion, sueno: data.sueno, dieta: data.dieta, bienestar: data.bienestar, motivacion: data.motivacion };
   toast('Check-in enviado ✓');
   FEEDBACK_METRICS.forEach(m => {
     document.querySelectorAll(`[data-metric="${m.id}"]`).forEach(b => b.classList.remove('selected'));
   });
   document.getElementById('feedback-comments').value = '';
+  renderDashboard();
 }
 
 // ═══════════════════════════════════════════════════════════════
