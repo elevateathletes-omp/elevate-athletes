@@ -1109,7 +1109,7 @@ function loadSession() {
         </div>
         <svg class="ex-chevron" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
-      ${ex.notas ? `<div class="ex-note">💡 ${ex.notas}</div>` : ''}
+      ${ex.notas ? `<div class="ex-note">${ex.notas}</div>` : ''}
       <div class="ex-body">${seriesHTML}</div>`;
     list.appendChild(card);
   });
