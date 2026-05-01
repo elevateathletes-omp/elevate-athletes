@@ -649,6 +649,7 @@ const DEMO = {
     { label: 'Cintura',  inicial: 82,   actual: 79,   unidad: 'cm' },
     { label: 'Cadera',   inicial: 98,   actual: 96,   unidad: 'cm' },
     { label: 'Pecho',    inicial: 100,  actual: 102,  unidad: 'cm' },
+    { label: 'Hombros',  inicial: 120,  actual: 122,  unidad: 'cm' },
     { label: 'Bíceps',   inicial: 36,   actual: 37.5, unidad: 'cm' },
     { label: 'Muslo',    inicial: 58,   actual: 57,   unidad: 'cm' },
     { label: 'Gemelo',   inicial: 37,   actual: 37.5, unidad: 'cm' },
@@ -708,7 +709,7 @@ async function postToSheets(action, data) {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════
 function renderDashboard() {
-  document.getElementById('dash-athlete-name').textContent = 'Cliente · ' + CONFIG.CLIENT_ID;
+  document.getElementById('dash-athlete-name').textContent = 'Atleta · ' + STATE.athlete.nombre;
   document.getElementById('dash-mc').textContent = STATE.athlete.microciclo;
 
   const pesos = getPesoData();
@@ -917,6 +918,7 @@ async function loadFromSheets() {
 
       // Refresca pantallas con datos actualizados
       renderDashboard();
+      if (document.getElementById('screen-entreno').classList.contains('active'))    renderEntreno();
       if (document.getElementById('screen-peso').classList.contains('active'))       renderPeso();
       if (document.getElementById('screen-mediciones').classList.contains('active')) renderMediciones();
 

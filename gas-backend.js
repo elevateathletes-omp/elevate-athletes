@@ -162,7 +162,9 @@ function getSesiones(ss, clientId) {
   const sheet = ss.getSheetByName(`${clientId}_Sesiones`);
   if (!sheet || sheet.getLastRow() < 2) return { ok: true, sessions: [] };
 
-  const rows = sheet.getDataRange().getValues();
+  // getDisplayValues devuelve texto tal como se ve en Sheets,
+  // evitando que valores como "8-10" se conviertan en fechas.
+  const rows = sheet.getDataRange().getDisplayValues();
   const sessionMap = {};
   const sessionOrder = [];
 
