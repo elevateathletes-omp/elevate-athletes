@@ -253,15 +253,6 @@ a{color:inherit;text-decoration:none}
         </div>
       </div>
 
-      <div class="section-title">Progresión de carga</div>
-      <div class="pad">
-        <div class="card">
-          <div class="chart-wrap" style="padding:0">
-            <canvas id="weight-chart"></canvas>
-          </div>
-        </div>
-      </div>
-
       <div class="section-title">Evolución de tonelaje</div>
       <div class="pad">
         <div class="card">
@@ -766,7 +757,6 @@ function renderDashboard() {
   document.getElementById('dash-adherencia').textContent = fb.dieta + '/10';
 
   drawRadar();
-  drawWeightTrend();
   drawTonelajeChart();
 }
 
