@@ -188,6 +188,13 @@ a{color:inherit;text-decoration:none}
 .empty-state{text-align:center;padding:48px 24px;color:var(--txt3)}
 .empty-state svg{opacity:.3;margin-bottom:12px}
 .empty-state p{font-size:14px}
+
+/* Exercise note */
+.ex-note{font-size:11px;color:var(--txt3);font-style:italic;padding:4px 10px 8px;border-left:2px solid var(--border2);margin-left:10px}
+
+/* Pulse animation for sync indicator */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -200,7 +207,13 @@ a{color:inherit;text-decoration:none}
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div>
             <img src="logo.png" alt="Elevate Athletes" style="height:52px;width:auto;display:block">
-            <div style="font-size:12px;color:var(--txt2);margin-top:6px" id="dash-athlete-name">Cargando...</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+              <div style="font-size:12px;color:var(--txt2)" id="dash-athlete-name">Cargando...</div>
+              <div id="sync-indicator" style="display:none;align-items:center;gap:3px">
+                <div style="width:6px;height:6px;border-radius:50%;background:var(--amber);animation:pulse 1.2s infinite" id="sync-dot"></div>
+                <span style="font-size:10px;color:var(--txt3)" id="sync-label">sincronizando</span>
+              </div>
+            </div>
           </div>
           <div style="text-align:right">
             <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em">Microciclo</div>
@@ -289,6 +302,26 @@ a{color:inherit;text-decoration:none}
         </div>
       </div>
 
+      <div id="entreno-loading" class="pad" style="display:none;padding-top:16px">
+        <div class="card">
+          <div class="empty-state" style="padding:32px 24px">
+            <div style="width:32px;height:32px;border:3px solid var(--border2);border-top-color:var(--red);
+              border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>
+            <p>Cargando sesiones...</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="entreno-empty" class="pad" style="display:none;padding-top:16px">
+        <div class="card">
+          <div class="empty-state" style="padding:32px 24px">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 5v14M18 5v14M4 9h4M16 9h4M4 15h4M16 15h4"/></svg>
+            <p style="margin-bottom:6px;color:var(--txt2)">Sin sesiones configuradas</p>
+            <p style="font-size:12px">El entrenador aún no ha cargado las sesiones.<br>Ejecuta <code style="background:var(--bg4);padding:2px 6px;border-radius:4px;font-size:11px">setupNewClient('${CONFIG.CLIENT_ID}')</code> en Apps Script.</p>
+          </div>
+        </div>
+      </div>
+
       <div id="exercise-table-wrap" style="padding:0 16px;margin-top:12px;display:none">
         <div class="card" style="padding:0;overflow:hidden">
           <div style="padding:12px 16px;background:var(--bg4);border-bottom:1px solid var(--border);
@@ -300,11 +333,11 @@ a{color:inherit;text-decoration:none}
             <table class="data-table" id="exercise-table">
               <thead>
                 <tr>
-                  <th>Ejercicio</th>
-                  <th>Series</th>
-                  <th>Reps</th>
-                  <th>Kg</th>
-                  <th>RIR</th>
+                  <th style="min-width:110px">Ejercicio</th>
+                  <th style="min-width:60px">Objetivo</th>
+                  <th style="min-width:56px">Kg</th>
+                  <th style="min-width:48px">Reps</th>
+                  <th style="min-width:44px">RIR</th>
                 </tr>
               </thead>
               <tbody id="exercise-tbody"></tbody>
@@ -528,36 +561,47 @@ const CONFIG = {
 // ESTADO LOCAL
 // ═══════════════════════════════════════════════════════════════
 const STATE = {
-  athlete: { nombre: 'Atleta', microciclo: 1 },
-  diaType: 'entreno',
-  peso: [],
-  feedback: [],
-  training: [],
-  mediciones: [],
-  sessions: [
-    { id: 'A', name: 'Sesión A — Pecho / Hombro / Tríceps', exercises: [
-      { name: 'Press Banca', sets: 4, reps: '8-10', kg: '', rir: '' },
-      { name: 'Press Inclinado', sets: 3, reps: '10-12', kg: '', rir: '' },
-      { name: 'Elevaciones Laterales', sets: 4, reps: '12-15', kg: '', rir: '' },
-      { name: 'Fondos en paralelas', sets: 3, reps: '10-12', kg: '', rir: '' },
-      { name: 'Press Francés', sets: 3, reps: '10-12', kg: '', rir: '' },
-    ]},
-    { id: 'B', name: 'Sesión B — Espalda / Bíceps', exercises: [
-      { name: 'Dominadas', sets: 4, reps: '6-8', kg: '', rir: '' },
-      { name: 'Remo con barra', sets: 4, reps: '8-10', kg: '', rir: '' },
-      { name: 'Remo en polea baja', sets: 3, reps: '10-12', kg: '', rir: '' },
-      { name: 'Curl Bíceps barra', sets: 3, reps: '10-12', kg: '', rir: '' },
-      { name: 'Curl Martillo', sets: 3, reps: '10-12', kg: '', rir: '' },
-    ]},
-    { id: 'C', name: 'Sesión C — Pierna', exercises: [
-      { name: 'Sentadilla', sets: 4, reps: '6-8', kg: '', rir: '' },
-      { name: 'Prensa', sets: 3, reps: '10-12', kg: '', rir: '' },
-      { name: 'Curl Femoral', sets: 4, reps: '10-12', kg: '', rir: '' },
-      { name: 'Extensión de cuádriceps', sets: 3, reps: '12-15', kg: '', rir: '' },
-      { name: 'Gemelos en prensa', sets: 4, reps: '15-20', kg: '', rir: '' },
-    ]},
-  ],
+  athlete:        { nombre: 'Atleta', microciclo: 1 },
+  diaType:        'entreno',
+  sessionsLoaded: false,   // true cuando se hayan cargado desde Sheets (o fallback)
+  sessions:       [],      // se llena con loadFromSheets() o con FALLBACK_SESSIONS
+  peso:           [],
+  feedback:       [],
+  training:       [],
+  mediciones:     [],
 };
+
+// Sesiones de ejemplo mientras se cargan desde Sheets (o si falla la conexión)
+const FALLBACK_SESSIONS = [
+  { id: 'TORSO 1', name: 'TORSO 1 — Empuje + Hombro + Tríceps', exercises: [
+    { name: 'Press Banca',           sets: 4, reps: '8-10',  rir: '2', descanso: '2-3 min', notas: 'Controla la bajada 2 seg' },
+    { name: 'Press Inclinado',       sets: 3, reps: '10-12', rir: '2', descanso: '90s',     notas: '' },
+    { name: 'Elevaciones Laterales', sets: 4, reps: '12-15', rir: '3', descanso: '60s',     notas: 'Cable o mancuerna' },
+    { name: 'Fondos en paralelas',   sets: 3, reps: '10-12', rir: '2', descanso: '90s',     notas: 'Con lastre si es fácil' },
+    { name: 'Press Francés',         sets: 3, reps: '10-12', rir: '2', descanso: '60s',     notas: '' },
+  ]},
+  { id: 'TORSO 2', name: 'TORSO 2 — Tirón + Bíceps', exercises: [
+    { name: 'Dominadas',             sets: 4, reps: '6-8',   rir: '2', descanso: '2-3 min', notas: 'Con lastre si haces >10' },
+    { name: 'Remo con barra',        sets: 4, reps: '8-10',  rir: '2', descanso: '2 min',   notas: 'Codo a 45° del cuerpo' },
+    { name: 'Remo en polea baja',    sets: 3, reps: '10-12', rir: '2', descanso: '90s',     notas: '' },
+    { name: 'Curl Bíceps con barra', sets: 3, reps: '10-12', rir: '2', descanso: '60s',     notas: '' },
+    { name: 'Curl Martillo',         sets: 3, reps: '10-12', rir: '2', descanso: '60s',     notas: '' },
+  ]},
+  { id: 'PIERNA 1', name: 'PIERNA 1 — Cuádriceps + Glúteo', exercises: [
+    { name: 'Sentadilla',               sets: 4, reps: '6-8',   rir: '2', descanso: '3 min',   notas: 'Profundidad completa' },
+    { name: 'Prensa 45°',              sets: 3, reps: '10-12', rir: '2', descanso: '2 min',   notas: '' },
+    { name: 'Extensión de cuádriceps', sets: 3, reps: '12-15', rir: '3', descanso: '60s',     notas: 'Último set con rest-pause' },
+    { name: 'Hip Thrust',              sets: 4, reps: '10-12', rir: '2', descanso: '90s',     notas: 'Pausa 1 seg arriba' },
+    { name: 'Gemelos en prensa',       sets: 4, reps: '15-20', rir: '2', descanso: '45s',     notas: 'Rango completo' },
+  ]},
+  { id: 'PIERNA 2', name: 'PIERNA 2 — Femoral + Glúteo posterior', exercises: [
+    { name: 'Peso Muerto Rumano',    sets: 4, reps: '8-10',  rir: '2', descanso: '2-3 min', notas: 'Sentir el estiramiento' },
+    { name: 'Curl Femoral tumbado',  sets: 4, reps: '10-12', rir: '2', descanso: '90s',     notas: '' },
+    { name: 'Buenos Días',           sets: 3, reps: '10-12', rir: '3', descanso: '90s',     notas: 'Peso ligero, ROM amplio' },
+    { name: 'Abductores en cable',   sets: 3, reps: '15',    rir: '3', descanso: '60s',     notas: '' },
+    { name: 'Gemelos de pie',        sets: 4, reps: '12-15', rir: '2', descanso: '60s',     notas: '' },
+  ]},
+];
 
 // ═══════════════════════════════════════════════════════════════
 // DATOS DEMO
@@ -820,43 +864,161 @@ function drawWeightTrend() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ENTRENAMIENTO
+// CARGA DINÁMICA DESDE SHEETS
 // ═══════════════════════════════════════════════════════════════
-function renderEntreno() {
-  const sel = document.getElementById('session-select');
-  if (sel.options.length <= 1) {
-    STATE.sessions.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s.id; opt.textContent = s.name;
-      sel.appendChild(opt);
-    });
+async function loadFromSheets() {
+  if (CONFIG.GAS_URL === 'TU_GAS_URL_AQUI') {
+    // Modo demo: usa fallback sin intentar conectar
+    STATE.sessions = FALLBACK_SESSIONS;
+    STATE.sessionsLoaded = true;
+    return;
+  }
+
+  setSyncIndicator(true);
+  try {
+    const url = `${CONFIG.GAS_URL}?action=getAll&clientId=${encodeURIComponent(CONFIG.CLIENT_ID)}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.ok) {
+      // Sesiones
+      if (data.sesiones && data.sesiones.length > 0) {
+        STATE.sessions = data.sesiones;
+      } else {
+        STATE.sessions = [];   // entrenador aún no las ha configurado
+      }
+
+      // Config del atleta
+      const cfg = data.config || {};
+      if (cfg.nombre)        STATE.athlete.nombre     = cfg.nombre;
+      if (cfg.microciclo)    STATE.athlete.microciclo = parseInt(cfg.microciclo);
+      if (cfg.kcal_entreno)  DEMO.macros.entreno.kcal  = parseInt(cfg.kcal_entreno);
+      if (cfg.prot_entreno)  DEMO.macros.entreno.prot  = parseInt(cfg.prot_entreno);
+      if (cfg.carbs_entreno) DEMO.macros.entreno.carbs = parseInt(cfg.carbs_entreno);
+      if (cfg.fat_entreno)   DEMO.macros.entreno.fat   = parseInt(cfg.fat_entreno);
+      if (cfg.kcal_descanso)  DEMO.macros.descanso.kcal  = parseInt(cfg.kcal_descanso);
+      if (cfg.prot_descanso)  DEMO.macros.descanso.prot  = parseInt(cfg.prot_descanso);
+      if (cfg.carbs_descanso) DEMO.macros.descanso.carbs = parseInt(cfg.carbs_descanso);
+      if (cfg.fat_descanso)   DEMO.macros.descanso.fat   = parseInt(cfg.fat_descanso);
+
+      // Refresca el dashboard con los datos actualizados
+      renderDashboard();
+    } else {
+      // Error de GAS → fallback
+      STATE.sessions = FALLBACK_SESSIONS;
+    }
+  } catch (_) {
+    // Sin conexión → fallback
+    STATE.sessions = FALLBACK_SESSIONS;
+    toast('Sin conexión — usando datos locales', 'err');
+  }
+
+  STATE.sessionsLoaded = true;
+  setSyncIndicator(false);
+
+  // Si el usuario ya está en la pantalla de entreno, actualiza el selector
+  if (document.getElementById('screen-entreno').classList.contains('active')) {
+    renderEntreno();
   }
 }
 
+function setSyncIndicator(active) {
+  const ind = document.getElementById('sync-indicator');
+  const dot = document.getElementById('sync-dot');
+  if (!ind) return;
+  ind.style.display = active ? 'flex' : 'none';
+  if (!active) {
+    dot.style.background = 'var(--green)';
+    document.getElementById('sync-label').textContent = 'sincronizado';
+    setTimeout(() => { ind.style.display = 'none'; }, 2000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENTRENAMIENTO
+// ═══════════════════════════════════════════════════════════════
+function renderEntreno() {
+  const loading = document.getElementById('entreno-loading');
+  const empty   = document.getElementById('entreno-empty');
+  const selCard = document.getElementById('session-selector-card');
+  const wrap    = document.getElementById('exercise-table-wrap');
+
+  // Aún cargando
+  if (!STATE.sessionsLoaded) {
+    loading.style.display = 'block';
+    empty.style.display   = 'none';
+    selCard.style.display = 'none';
+    wrap.style.display    = 'none';
+    return;
+  }
+
+  loading.style.display = 'none';
+
+  // Sin sesiones configuradas
+  if (STATE.sessions.length === 0) {
+    empty.style.display   = 'block';
+    selCard.style.display = 'none';
+    wrap.style.display    = 'none';
+    return;
+  }
+
+  empty.style.display   = 'none';
+  selCard.style.display = 'block';
+
+  // Rellena el select si está vacío o ha cambiado
+  const sel = document.getElementById('session-select');
+  sel.innerHTML = '<option value="">— Elige sesión —</option>';
+  STATE.sessions.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    sel.appendChild(opt);
+  });
+
+  // Limpia la tabla si había sesión anterior
+  wrap.style.display = 'none';
+  document.getElementById('exercise-tbody').innerHTML = '';
+  document.getElementById('tonelaje-display').textContent = '0 kg';
+}
+
 function loadSession() {
-  const id = document.getElementById('session-select').value;
+  const id   = document.getElementById('session-select').value;
   const wrap = document.getElementById('exercise-table-wrap');
   if (!id) { wrap.style.display = 'none'; return; }
 
   const session = STATE.sessions.find(s => s.id === id);
+  if (!session) return;
+
   wrap.style.display = 'block';
-  document.getElementById('session-name-label').textContent = session.name.split('—')[0].trim();
-  document.getElementById('session-sets-label').textContent = session.exercises.reduce((a,e)=>a+e.sets,0) + ' series';
+  document.getElementById('session-name-label').textContent = session.name;
+  const totalSeries = session.exercises.reduce((a, e) => a + e.sets, 0);
+  document.getElementById('session-sets-label').textContent = totalSeries + ' series';
 
   const tbody = document.getElementById('exercise-tbody');
   tbody.innerHTML = '';
+
   session.exercises.forEach((ex, ei) => {
     for (let s = 0; s < ex.sets; s++) {
+      const isFirst = s === 0;
       const tr = document.createElement('tr');
+
+      // Fila con el nombre del ejercicio (solo primera serie) + objetivos
+      const exCell = isFirst
+        ? `<span style="font-weight:600">${ex.name}</span>
+           ${ex.notas ? `<div class="ex-note">💡 ${ex.notas}</div>` : ''}`
+        : `<span style="font-size:11px;color:var(--txt3)">Serie ${s + 1}</span>`;
+
+      const objetivo = isFirst
+        ? `<span style="color:var(--txt2);font-size:12px">${ex.reps} reps<br>RIR ${ex.rir}</span>`
+        : `<span style="color:var(--txt3);font-size:11px">—</span>`;
+
       tr.innerHTML = `
-        <td style="font-weight:500;color:${s===0?'var(--txt)':'var(--txt3)'}">
-          ${s===0 ? ex.name : '<span style="font-size:11px">Serie '+(s+1)+'</span>'}
-        </td>
-        <td style="color:var(--txt2);text-align:center">${ex.reps}</td>
+        <td>${exCell}</td>
+        <td style="text-align:center;white-space:nowrap">${objetivo}</td>
         <td><input type="number" placeholder="—" min="0" max="500" step="0.5"
-          data-ex="${ei}" data-set="${s}" data-field="kg"
-          oninput="calcTonelaje()" style="width:60px"></td>
-        <td><input type="number" placeholder="—" min="0" max="30"
+          data-ex="${ei}" data-set="${s}" data-field="kg" data-exname="${ex.name}"
+          oninput="calcTonelaje()" style="width:56px"></td>
+        <td><input type="number" placeholder="—" min="0" max="50"
           data-ex="${ei}" data-set="${s}" data-field="reps2"
           oninput="calcTonelaje()" style="width:48px"></td>
         <td><input type="number" placeholder="—" min="0" max="5"
@@ -872,9 +1034,7 @@ function calcTonelaje() {
   let total = 0;
   document.querySelectorAll('[data-field="kg"]').forEach(kg => {
     const repsEl = document.querySelector(`[data-ex="${kg.dataset.ex}"][data-set="${kg.dataset.set}"][data-field="reps2"]`);
-    const k = parseFloat(kg.value) || 0;
-    const r = parseFloat(repsEl?.value) || 0;
-    total += k * r;
+    total += (parseFloat(kg.value) || 0) * (parseFloat(repsEl?.value) || 0);
   });
   document.getElementById('tonelaje-display').textContent = total.toFixed(0) + ' kg';
 }
@@ -882,14 +1042,26 @@ function calcTonelaje() {
 async function saveTraining() {
   const id = document.getElementById('session-select').value;
   if (!id) { toast('Selecciona una sesión primero', 'err'); return; }
+
   const rows = [];
-  document.querySelectorAll('[data-field="kg"]').forEach(kg => {
-    const repsEl = document.querySelector(`[data-ex="${kg.dataset.ex}"][data-set="${kg.dataset.set}"][data-field="reps2"]`);
-    const rirEl = document.querySelector(`[data-ex="${kg.dataset.ex}"][data-set="${kg.dataset.set}"][data-field="rir"]`);
-    rows.push({ kg: kg.value, reps: repsEl?.value, rir: rirEl?.value });
+  document.querySelectorAll('[data-field="kg"]').forEach((kg, i) => {
+    const set  = kg.dataset.set;
+    const ex   = kg.dataset.ex;
+    const repsEl = document.querySelector(`[data-ex="${ex}"][data-set="${set}"][data-field="reps2"]`);
+    const rirEl  = document.querySelector(`[data-ex="${ex}"][data-set="${set}"][data-field="rir"]`);
+    rows.push({
+      ejercicio: kg.dataset.exname || '',
+      serie:     parseInt(set) + 1,
+      kg:        kg.value,
+      reps:      repsEl?.value || '',
+      rir:       rirEl?.value  || '',
+    });
   });
+
   await postToSheets('saveTraining', {
-    session: id, date: new Date().toISOString().split('T')[0], rows
+    session: id,
+    date:    new Date().toISOString().split('T')[0],
+    rows,
   });
   toast('Sesión guardada correctamente');
 }
@@ -1227,9 +1399,16 @@ async function saveMedicion() {
 // INIT
 // ═══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  renderDashboard();
+  // Fecha de hoy en el campo de peso
   const pesoFecha = document.getElementById('peso-fecha');
   if (pesoFecha) pesoFecha.value = new Date().toISOString().split('T')[0];
+
+  // Render inicial del dashboard con datos demo
+  renderDashboard();
+
+  // Carga asíncrona desde Google Sheets:
+  // actualiza sesiones, nombre del atleta y macros reales
+  loadFromSheets();
 });
 </script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/elevate-athletes/sw.js")}</script>
