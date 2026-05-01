@@ -1378,7 +1378,7 @@ function renderDietaContent() {
         </div>
       </div>
       <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Propuesta</div>
-      <div style="font-size:13px;color:var(--txt2);margin-bottom:12px;line-height:1.6">${c.propuesta}</div>
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:12px;line-height:1.8">${c.propuesta.split(' · ').map(item => `<div>· ${item}</div>`).join('')}</div>
       <label class="form-label" style="font-size:11px">¿Qué comiste tú?</label>
       <textarea id="dieta-nota-${i}" rows="2" placeholder="Describe lo que comiste..." style="resize:none;font-size:13px"></textarea>
     </div>`).join('');
