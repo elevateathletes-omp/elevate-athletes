@@ -15,7 +15,7 @@
 //  Esto crea las hojas de configuración y sesiones con datos de ejemplo
 // ════════════════════════════════════════════════════════════════
 
-const SHEET_ID = 'TU_SHEET_ID_AQUI';
+const SHEET_ID = '1qH4xJlK5cdFY3uTaTt94zE6vokU763ueY4zs5NO2p5M';
 
 // ── doPost: guarda datos enviados por la app ──────────────────
 function doPost(e) {
