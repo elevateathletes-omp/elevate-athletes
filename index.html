@@ -118,6 +118,10 @@ a{color:inherit;text-decoration:none}
 .btn-secondary{background:var(--bg4);color:var(--txt);border:1px solid var(--border2);width:100%}
 .btn-sm{padding:8px 14px;font-size:13px;border-radius:6px}
 
+/* Day type toggle */
+.day-toggle{display:flex;gap:8px;margin-bottom:16px}
+.day-toggle .btn-sm{flex:1;transition:all .2s}
+
 /* Form */
 .form-group{margin-bottom:14px}
 .form-label{font-size:12px;font-weight:600;color:var(--txt2);letter-spacing:.05em;
@@ -152,6 +156,20 @@ a{color:inherit;text-decoration:none}
   background:var(--bg4);border:1px solid var(--border)}
 .data-table input:focus{border-color:var(--red)}
 
+/* Meal card macros mini-grid */
+.meal-macros{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.meal-macro-chip{background:var(--bg4);border-radius:6px;padding:6px 4px;text-align:center}
+.meal-macro-val{font-family:var(--font-display);font-size:15px;font-weight:800;line-height:1}
+.meal-macro-lbl{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+
+/* Supple list */
+.supple-item{display:flex;align-items:flex-start;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--border);gap:8px}
+.supple-item:last-child{border-bottom:none}
+.supple-name{font-size:14px;font-weight:600}
+.supple-dosis{font-size:12px;color:var(--green);font-weight:600;white-space:nowrap}
+.supple-cuando{font-size:11px;color:var(--txt3);margin-top:2px}
+
 /* Toast */
 #toast{position:fixed;bottom:calc(var(--nav-h) + 16px);left:50%;transform:translateX(-50%) translateY(20px);
   background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);
@@ -178,17 +196,15 @@ a{color:inherit;text-decoration:none}
 
     <!-- ══════════════ DASHBOARD ══════════════ -->
     <div id="screen-dashboard" class="screen active">
-      <div style="background:linear-gradient(160deg,#1A0005 0%,var(--bg2) 60%);padding:24px 20px 20px;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div style="background:linear-gradient(160deg,#1A0005 0%,var(--bg2) 60%);padding:20px 20px 16px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
           <div>
-            <div style="font-family:var(--font-display);font-size:26px;font-weight:800;letter-spacing:.06em;line-height:1">
-              ELEVATE <span style="color:var(--red)">⚡</span> ATHLETES
-            </div>
-            <div style="font-size:12px;color:var(--txt2);margin-top:2px" id="dash-athlete-name">Cargando...</div>
+            <img src="logo.png" alt="Elevate Athletes" style="height:52px;width:auto;display:block">
+            <div style="font-size:12px;color:var(--txt2);margin-top:6px" id="dash-athlete-name">Cargando...</div>
           </div>
           <div style="text-align:right">
             <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em">Microciclo</div>
-            <div style="font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--red);line-height:1" id="dash-mc">—</div>
+            <div style="font-family:var(--font-display);font-size:32px;font-weight:800;color:var(--red);line-height:1" id="dash-mc">—</div>
           </div>
         </div>
       </div>
@@ -382,21 +398,32 @@ a{color:inherit;text-decoration:none}
     <div id="screen-dieta" class="screen">
       <div class="page-header">
         <h1>Plan Nutricional</h1>
-        <div class="subtitle">Microciclo actual</div>
+        <div class="subtitle" id="dieta-subtitle">Selecciona el tipo de día</div>
       </div>
 
-      <div class="section-title">Objetivos del día</div>
+      <div class="section-title">Tipo de día</div>
       <div class="pad">
         <div class="card">
-          <div id="macro-targets">
-            <div class="empty-state"><p>Cargando plan nutricional...</p></div>
+          <div class="day-toggle">
+            <button id="btn-entreno" class="btn btn-primary btn-sm" onclick="setDayType('entreno')">
+              🏋️ Día de entreno
+            </button>
+            <button id="btn-descanso" class="btn btn-secondary btn-sm" onclick="setDayType('descanso')">
+              💤 Día de descanso
+            </button>
           </div>
+          <div id="macro-targets"></div>
         </div>
       </div>
 
       <div class="section-title">Distribución de comidas</div>
-      <div class="pad" id="meals-container">
-        <div class="card"><div class="empty-state"><p>No hay plan cargado aún</p></div></div>
+      <div id="meals-container" style="padding:0 16px"></div>
+
+      <div style="padding:0 16px;margin-top:4px;margin-bottom:12px">
+        <button class="btn btn-primary" onclick="saveDieta()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+          Guardar registro del día
+        </button>
       </div>
 
       <div class="section-title">Suplementación</div>
@@ -419,6 +446,10 @@ a{color:inherit;text-decoration:none}
             <span class="badge badge-blue" id="med-date-badge">Hoy</span>
           </div>
           <div id="medicion-form" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Comentarios</label>
+            <textarea id="med-comentarios" rows="2" placeholder="Sensaciones, contexto, notas del entrenador..."></textarea>
+          </div>
           <div style="margin-top:14px">
             <button class="btn btn-primary" onclick="saveMedicion()">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -485,26 +516,23 @@ a{color:inherit;text-decoration:none}
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// CONFIG — EDITA AQUÍ TU GOOGLE SHEETS ID Y GAS URL
+// CONFIG
 // ═══════════════════════════════════════════════════════════════
 const CONFIG = {
-  // ID del Google Sheet (de la URL: /spreadsheets/d/ESTE_ID/edit)
   SHEET_ID: 'AKfycbxR9TjF7AdnoRL431jRaYK8Vq8aZU_i_JR32Eg7ltqGfZ2KmkVSEdl57CDXtFZUOK2hqg',
-  // URL del Google Apps Script desplegado (ver guía de implementación)
   GAS_URL: 'https://script.google.com/macros/s/AKfycbxR9TjF7AdnoRL431jRaYK8Vq8aZU_i_JR32Eg7ltqGfZ2KmkVSEdl57CDXtFZUOK2hqg/exec',
-  // ID del cliente (se puede pasar por URL: ?cliente=ID)
   CLIENT_ID: new URLSearchParams(window.location.search).get('cliente') || 'demo',
 };
 
 // ═══════════════════════════════════════════════════════════════
-// ESTADO LOCAL (caché mientras se carga desde Sheets)
+// ESTADO LOCAL
 // ═══════════════════════════════════════════════════════════════
 const STATE = {
   athlete: { nombre: 'Atleta', microciclo: 1 },
+  diaType: 'entreno',
   peso: [],
   feedback: [],
   training: [],
-  plan: { dias_entreno: [], dias_descanso: [], comidas: [], suplementos: [] },
   mediciones: [],
   sessions: [
     { id: 'A', name: 'Sesión A — Pecho / Hombro / Tríceps', exercises: [
@@ -531,7 +559,9 @@ const STATE = {
   ],
 };
 
-// DATOS DEMO para que la app se vea funcional desde el primer momento
+// ═══════════════════════════════════════════════════════════════
+// DATOS DEMO
+// ═══════════════════════════════════════════════════════════════
 const DEMO = {
   peso: [
     { fecha: '2025-04-14', kg: 80.2 },
@@ -547,24 +577,39 @@ const DEMO = {
   feedback: { energia: 8, recuperacion: 7, sueno: 6, dieta: 8, bienestar: 7, motivacion: 9 },
   tonelaje: { actual: 4850, anterior: 4620 },
   macros: {
-    entreno: { kcal: 2400, prot: 175, carbs: 290, fat: 68 },
-    descanso: { kcal: 2100, prot: 175, carbs: 220, fat: 68 },
+    entreno: { kcal: 2500, prot: 160, carbs: 321, fat: 64 },
+    descanso: { kcal: 2300, prot: 160, carbs: 253, fat: 72 },
   },
-  comidas: [
-    { name: 'Comida 1 — Desayuno', items: 'Avena 80g · Leche desnatada 250ml · Claras 4 · Plátano 1' },
-    { name: 'Comida 2 — Media mañana', items: 'Yogur griego 0% 200g · Frutos secos 30g' },
-    { name: 'Comida 3 — Pre-entreno', items: 'Arroz 150g · Pechuga de pollo 200g · Verduras' },
-    { name: 'Comida 4 — Post-entreno', items: 'Batido proteína 40g · Plátano 1 · Arroz 100g' },
-    { name: 'Comida 5 — Cena', items: 'Salmón 200g · Patata dulce 150g · Ensalada libre' },
+  // Propuesta de comidas por tipo de día — editable por el cliente
+  comidas_entreno: [
+    { name: 'Comida 1 — Desayuno',  prot: 35,  carbs: 40,  fat: 15, kcal: 435, propuesta: 'Avena 80g · Leche desnatada 250ml · Claras de huevo 4 · Plátano 1' },
+    { name: 'Comida 2 — Snack',     prot: 15,  carbs: 31,  fat: 5,  kcal: 229, propuesta: 'Yogur griego 0% 200g · Frutos secos 30g' },
+    { name: 'Comida 3 — Comida',    prot: 45,  carbs: 100, fat: 15, kcal: 715, propuesta: 'Arroz 150g · Pechuga de pollo 200g · Verduras al gusto' },
+    { name: 'Preentreno',           prot: 20,  carbs: 50,  fat: 5,  kcal: 325, propuesta: 'Arroz 100g · Atún al natural 1 lata · Fruta' },
+    { name: 'Comida 4 — Cena',      prot: 45,  carbs: 100, fat: 24, kcal: 796, propuesta: 'Salmón 200g · Patata dulce 150g · Ensalada libre · AOVE' },
   ],
-  suplementos: ['Creatina 5g (post-entreno)', 'Vitamina D3 2000UI (con comida)', 'Omega-3 2g (con cena)', 'Proteína whey (post-entreno)'],
+  comidas_descanso: [
+    { name: 'Comida 1 — Desayuno',  prot: 40,  carbs: 40,  fat: 17, kcal: 473, propuesta: 'Tortilla 3 huevos · Avena 60g · Leche desnatada 200ml' },
+    { name: 'Comida 2 — Snack',     prot: 20,  carbs: 31,  fat: 10, kcal: 294, propuesta: 'Yogur griego 0% 200g · Almendras 20g' },
+    { name: 'Comida 3 — Comida',    prot: 50,  carbs: 100, fat: 15, kcal: 735, propuesta: 'Pechuga de pollo 250g · Arroz 150g · Verduras' },
+    { name: 'Comida 4 — Cena',      prot: 50,  carbs: 82,  fat: 30, kcal: 798, propuesta: 'Merluza 250g · Patata hervida 100g · Verduras · AOVE 20ml' },
+  ],
+  suplementos: [
+    { name: 'Creatina Monohidrato', dosis: '5 g/día', cuando: 'Indiferente (constancia)' },
+    { name: 'Proteína Whey',        dosis: 'Según dieta',     cuando: 'Post-entreno' },
+    { name: 'Vitamina D3',          dosis: '2000 UI',         cuando: 'Mañana con comida' },
+    { name: 'Omega-3 (IFOS)',       dosis: '1-2 g EPA+DHA',  cuando: 'Noche con cena' },
+    { name: 'Magnesio bisglicinato',dosis: '300 mg',          cuando: 'Antes de dormir' },
+    { name: 'Cafeína',              dosis: '200 mg',          cuando: 'Pre-entreno (sin tomar tarde)' },
+  ],
   mediciones: [
-    { label: 'Cintura', inicial: 82, actual: 79 },
-    { label: 'Cadera', inicial: 98, actual: 96 },
-    { label: 'Pecho', inicial: 100, actual: 102 },
-    { label: 'Bíceps', inicial: 36, actual: 37.5 },
-    { label: 'Muslo', inicial: 58, actual: 57 },
-    { label: 'Gemelo', inicial: 37, actual: 37.5 },
+    { label: 'Cintura',  inicial: 82,   actual: 79,   unidad: 'cm' },
+    { label: 'Cadera',   inicial: 98,   actual: 96,   unidad: 'cm' },
+    { label: 'Pecho',    inicial: 100,  actual: 102,  unidad: 'cm' },
+    { label: 'Bíceps',   inicial: 36,   actual: 37.5, unidad: 'cm' },
+    { label: 'Muslo',    inicial: 58,   actual: 57,   unidad: 'cm' },
+    { label: 'Gemelo',   inicial: 37,   actual: 37.5, unidad: 'cm' },
+    { label: '% Grasa',  inicial: 20.5, actual: 18.2, unidad: '%' },
   ],
 };
 
@@ -623,7 +668,6 @@ function renderDashboard() {
   document.getElementById('dash-athlete-name').textContent = 'Cliente · ' + CONFIG.CLIENT_ID;
   document.getElementById('dash-mc').textContent = STATE.athlete.microciclo;
 
-  // Peso promedio
   const pesos = DEMO.peso;
   const ultimosPesos = pesos.slice(-7);
   const prom = (ultimosPesos.reduce((a,b) => a + b.kg, 0) / ultimosPesos.length).toFixed(1);
@@ -636,7 +680,6 @@ function renderDashboard() {
     document.getElementById('dash-peso-delta').innerHTML = `<span class="${cl}">${d > 0 ? '+' : ''}${d} kg vs semana ant.</span>`;
   }
 
-  // Bienestar
   const fb = DEMO.feedback;
   const vals = Object.values(fb);
   const avg = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
@@ -644,19 +687,15 @@ function renderDashboard() {
   const label = avg >= 7.5 ? '🟢 Excelente' : avg >= 5.5 ? '🟡 Aceptable' : '🔴 Difícil';
   document.getElementById('dash-bienestar-label').textContent = label;
 
-  // Tonelaje
   const ton = DEMO.tonelaje;
   document.getElementById('dash-tonelaje').textContent = (ton.actual/1000).toFixed(1) + 'T';
   const d = ((ton.actual - ton.anterior)/ton.anterior*100).toFixed(1);
   const tonEl = document.getElementById('dash-tonelaje-delta');
   tonEl.innerHTML = `<span class="${d > 0 ? 'delta-up' : 'delta-down'}">${d > 0 ? '+' : ''}${d}% vs MC ant.</span>`;
 
-  // Adherencia
   document.getElementById('dash-adherencia').textContent = fb.dieta + '/10';
 
-  // Radar
   drawRadar();
-  // Weight trend
   drawWeightTrend();
 }
 
@@ -672,7 +711,6 @@ function drawRadar() {
   const values = Object.values(DEMO.feedback);
   const N = labels.length;
 
-  // Grid
   for (let level = 2; level <= 10; level += 2) {
     ctx.beginPath();
     for (let i = 0; i < N; i++) {
@@ -688,7 +726,6 @@ function drawRadar() {
     ctx.stroke();
   }
 
-  // Axes
   for (let i = 0; i < N; i++) {
     const angle = (Math.PI * 2 * i / N) - Math.PI/2;
     ctx.beginPath();
@@ -698,7 +735,6 @@ function drawRadar() {
     ctx.stroke();
   }
 
-  // Data polygon
   ctx.beginPath();
   for (let i = 0; i < N; i++) {
     const angle = (Math.PI * 2 * i / N) - Math.PI/2;
@@ -714,7 +750,6 @@ function drawRadar() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Points
   for (let i = 0; i < N; i++) {
     const angle = (Math.PI * 2 * i / N) - Math.PI/2;
     const r = R * values[i] / 10;
@@ -726,7 +761,6 @@ function drawRadar() {
     ctx.fill();
   }
 
-  // Labels
   ctx.font = '600 10px Barlow, sans-serif';
   ctx.fillStyle = '#A0A0A0';
   ctx.textAlign = 'center';
@@ -758,7 +792,6 @@ function drawWeightTrend() {
   const toX = i => pad.l + (i / (vals.length-1)) * w;
   const toY = v => pad.t + h - ((v - min) / (max - min)) * h;
 
-  // Gradient fill
   const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + h);
   grad.addColorStop(0, 'rgba(200,0,30,0.3)');
   grad.addColorStop(1, 'rgba(200,0,30,0)');
@@ -771,7 +804,6 @@ function drawWeightTrend() {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Line
   ctx.beginPath();
   ctx.moveTo(toX(0), toY(vals[0]));
   vals.forEach((v,i) => i > 0 && ctx.lineTo(toX(i), toY(v)));
@@ -779,7 +811,6 @@ function drawWeightTrend() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Y labels
   ctx.font = '9px Barlow, sans-serif';
   ctx.fillStyle = '#606060';
   ctx.textAlign = 'right';
@@ -857,7 +888,7 @@ async function saveTraining() {
     const rirEl = document.querySelector(`[data-ex="${kg.dataset.ex}"][data-set="${kg.dataset.set}"][data-field="rir"]`);
     rows.push({ kg: kg.value, reps: repsEl?.value, rir: rirEl?.value });
   });
-  const res = await postToSheets('saveTraining', {
+  await postToSheets('saveTraining', {
     session: id, date: new Date().toISOString().split('T')[0], rows
   });
   toast('Sesión guardada correctamente');
@@ -910,7 +941,7 @@ async function saveFeedback() {
   if (!allFilled) { toast('Rellena todas las métricas', 'err'); return; }
   data.comments = document.getElementById('feedback-comments').value;
   data.date = new Date().toISOString().split('T')[0];
-  const res = await postToSheets('saveFeedback', data);
+  await postToSheets('saveFeedback', data);
   toast('Check-in enviado ✓');
   FEEDBACK_METRICS.forEach(m => {
     document.querySelectorAll(`[data-metric="${m.id}"]`).forEach(b => b.classList.remove('selected'));
@@ -922,10 +953,8 @@ async function saveFeedback() {
 // PESO
 // ═══════════════════════════════════════════════════════════════
 function renderPeso() {
-  // Set today's date
   document.getElementById('peso-fecha').value = new Date().toISOString().split('T')[0];
 
-  // Table
   const tbody = document.getElementById('peso-tbody');
   tbody.innerHTML = '';
   const sorted = [...DEMO.peso].reverse();
@@ -941,7 +970,6 @@ function renderPeso() {
     tbody.appendChild(tr);
   });
 
-  // Chart
   drawPesoChart();
 }
 
@@ -965,7 +993,6 @@ function drawPesoChart() {
   const toX = i => pad.l + (i / (vals.length-1)) * w;
   const toY = v => pad.t + h - ((v - min) / (max - min)) * h;
 
-  // Gradient
   const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + h);
   grad.addColorStop(0, 'rgba(200,0,30,0.3)');
   grad.addColorStop(1, 'rgba(200,0,30,0)');
@@ -978,7 +1005,6 @@ function drawPesoChart() {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Line
   ctx.beginPath();
   ctx.moveTo(toX(0), toY(vals[0]));
   vals.forEach((v,i) => i > 0 && ctx.lineTo(toX(i), toY(v)));
@@ -986,7 +1012,6 @@ function drawPesoChart() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Dots
   vals.forEach((v,i) => {
     ctx.beginPath();
     ctx.arc(toX(i), toY(v), 3, 0, Math.PI*2);
@@ -994,7 +1019,6 @@ function drawPesoChart() {
     ctx.fill();
   });
 
-  // X labels (every 2)
   ctx.font = '9px Barlow,sans-serif';
   ctx.fillStyle = '#606060';
   ctx.textAlign = 'center';
@@ -1002,7 +1026,6 @@ function drawPesoChart() {
     if (i % 2 === 0) ctx.fillText(l, toX(i), H - 6);
   });
 
-  // Y labels
   ctx.textAlign = 'right';
   [min+0.5, (min+max)/2, max-0.5].forEach(v => {
     ctx.fillText(v.toFixed(1), pad.l - 4, toY(v) + 3);
@@ -1023,60 +1046,123 @@ async function savePeso() {
 // ═══════════════════════════════════════════════════════════════
 // DIETA
 // ═══════════════════════════════════════════════════════════════
+function setDayType(type) {
+  STATE.diaType = type;
+  document.getElementById('btn-entreno').className  = 'btn btn-sm ' + (type === 'entreno'  ? 'btn-primary' : 'btn-secondary');
+  document.getElementById('btn-descanso').className = 'btn btn-sm ' + (type === 'descanso' ? 'btn-primary' : 'btn-secondary');
+  renderDietaContent();
+}
+
 function renderDieta() {
-  const macros = DEMO.macros;
-  const isTraining = true; // TODO: check day type from STATE
+  renderDietaContent();
+  renderSupplementos();
+}
 
-  const target = isTraining ? macros.entreno : macros.descanso;
-  const dayLabel = isTraining ? '🏋️ Día de entreno' : '💤 Día de descanso';
+function renderDietaContent() {
+  const type = STATE.diaType;
+  const macros = DEMO.macros[type];
+  const comidas = type === 'entreno' ? DEMO.comidas_entreno : DEMO.comidas_descanso;
 
+  document.getElementById('dieta-subtitle').textContent =
+    type === 'entreno' ? '🏋️ Día de entreno' : '💤 Día de descanso';
+
+  // Macro totales (del entrenador, solo lectura)
   document.getElementById('macro-targets').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <span style="font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:.05em">HOY</span>
-      <span class="badge badge-blue">${dayLabel}</span>
-    </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
-      ${[
-        { label: 'Kcal', val: target.kcal, color: 'var(--red)' },
-        { label: 'Proteína', val: target.prot + 'g', color: 'var(--green)' },
-        { label: 'Carbos', val: target.carbs + 'g', color: 'var(--amber)' },
-        { label: 'Grasas', val: target.fat + 'g', color: 'var(--blue)' },
-      ].map(m => `
-        <div style="background:var(--bg4);border-radius:8px;padding:10px 6px">
-          <div style="font-family:var(--font-display);font-size:20px;font-weight:800;color:${m.color}">${m.val}</div>
-          <div style="font-size:10px;color:var(--txt2);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">${m.label}</div>
-        </div>`).join('')}
+      <div style="background:var(--bg4);border-radius:8px;padding:10px 4px">
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--red)">${macros.kcal}</div>
+        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Kcal</div>
+      </div>
+      <div style="background:var(--bg4);border-radius:8px;padding:10px 4px">
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--green)">${macros.prot}g</div>
+        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Proteína</div>
+      </div>
+      <div style="background:var(--bg4);border-radius:8px;padding:10px 4px">
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--amber)">${macros.carbs}g</div>
+        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Carbos</div>
+      </div>
+      <div style="background:var(--bg4);border-radius:8px;padding:10px 4px">
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--blue)">${macros.fat}g</div>
+        <div style="font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Grasas</div>
+      </div>
     </div>`;
 
-  const meals = document.getElementById('meals-container');
-  meals.innerHTML = DEMO.comidas.map((c, i) => `
+  // Comidas con macros por comida + campo editable
+  const container = document.getElementById('meals-container');
+  container.innerHTML = comidas.map((c, i) => `
     <div class="card" style="margin-bottom:10px">
-      <div style="font-family:var(--font-display);font-size:13px;font-weight:700;letter-spacing:.05em;color:var(--txt2);margin-bottom:6px">${c.name.toUpperCase()}</div>
-      <div style="font-size:14px;line-height:1.6">${c.items.split(' · ').join('<br>')}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:.05em">${c.name.toUpperCase()}</span>
+        <span class="badge badge-amber" style="font-size:10px">${c.kcal} kcal</span>
+      </div>
+      <div class="meal-macros">
+        <div class="meal-macro-chip">
+          <div class="meal-macro-val" style="color:var(--green)">${c.prot}g</div>
+          <div class="meal-macro-lbl">Prot</div>
+        </div>
+        <div class="meal-macro-chip">
+          <div class="meal-macro-val" style="color:var(--amber)">${c.carbs}g</div>
+          <div class="meal-macro-lbl">CH</div>
+        </div>
+        <div class="meal-macro-chip">
+          <div class="meal-macro-val" style="color:var(--blue)">${c.fat}g</div>
+          <div class="meal-macro-lbl">Grasa</div>
+        </div>
+        <div class="meal-macro-chip">
+          <div class="meal-macro-val" style="color:var(--red)">${c.kcal}</div>
+          <div class="meal-macro-lbl">Kcal</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Propuesta</div>
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:12px;line-height:1.6">${c.propuesta}</div>
+      <label class="form-label" style="font-size:11px">¿Qué comiste tú?</label>
+      <textarea id="dieta-nota-${i}" rows="2" placeholder="Describe lo que comiste..." style="resize:none;font-size:13px"></textarea>
     </div>`).join('');
+}
 
+function renderSupplementos() {
   const supple = document.getElementById('supple-container');
   supple.innerHTML = `<div class="card">
     ${DEMO.suplementos.map(s => `
-      <div class="row-item">
-        <span class="row-label">${s.split('(')[0].trim()}</span>
-        <span class="row-val" style="font-size:12px;color:var(--txt3)">${s.match(/\(([^)]+)\)/)?.[1] || ''}</span>
+      <div class="supple-item">
+        <div>
+          <div class="supple-name">${s.name}</div>
+          <div class="supple-cuando">${s.cuando}</div>
+        </div>
+        <span class="supple-dosis">${s.dosis}</span>
       </div>`).join('')}
   </div>`;
+}
+
+async function saveDieta() {
+  const type = STATE.diaType;
+  const comidas = type === 'entreno' ? DEMO.comidas_entreno : DEMO.comidas_descanso;
+  const notas = {};
+  comidas.forEach((c, i) => {
+    const ta = document.getElementById(`dieta-nota-${i}`);
+    notas[`comida${i+1}`] = ta ? ta.value : '';
+  });
+  await postToSheets('saveDieta', {
+    fecha: new Date().toISOString().split('T')[0],
+    tipo_dia: type,
+    ...notas,
+  });
+  toast('Registro del día guardado');
 }
 
 // ═══════════════════════════════════════════════════════════════
 // MEDICIONES
 // ═══════════════════════════════════════════════════════════════
 const MED_FIELDS = [
-  { id: 'cintura', label: 'Cintura (cm)' },
-  { id: 'cadera', label: 'Cadera (cm)' },
-  { id: 'pecho', label: 'Pecho (cm)' },
-  { id: 'biceps', label: 'Bíceps (cm)' },
-  { id: 'muslo', label: 'Muslo (cm)' },
-  { id: 'gemelo', label: 'Gemelo (cm)' },
-  { id: 'hombros', label: 'Hombros (cm)' },
-  { id: 'peso', label: 'Peso (kg)' },
+  { id: 'peso',    label: 'Peso (kg)',          step: '0.1', max: '300' },
+  { id: 'grasa',   label: '% Grasa corporal',   step: '0.1', max: '60'  },
+  { id: 'cintura', label: 'Cintura (cm)',        step: '0.5', max: '200' },
+  { id: 'cadera',  label: 'Cadera (cm)',         step: '0.5', max: '200' },
+  { id: 'pecho',   label: 'Pecho (cm)',          step: '0.5', max: '200' },
+  { id: 'hombros', label: 'Hombros (cm)',        step: '0.5', max: '200' },
+  { id: 'biceps',  label: 'Bíceps (cm)',         step: '0.5', max: '100' },
+  { id: 'muslo',   label: 'Muslo (cm)',          step: '0.5', max: '200' },
+  { id: 'gemelo',  label: 'Gemelo (cm)',         step: '0.5', max: '100' },
 ];
 
 function renderMediciones() {
@@ -1087,29 +1173,30 @@ function renderMediciones() {
   form.innerHTML = MED_FIELDS.map(f => `
     <div class="form-group" style="margin:0">
       <label class="form-label">${f.label}</label>
-      <input type="number" id="med-${f.id}" placeholder="—" step="0.1" min="0" max="300">
+      <input type="number" id="med-${f.id}" placeholder="—" step="${f.step}" min="0" max="${f.max}">
     </div>`).join('');
 
-  // Progress vs initial
+  // Progresión vs inicial
   const container = document.getElementById('med-progress-container');
   container.innerHTML = DEMO.mediciones.map(m => {
     const delta = (m.actual - m.inicial).toFixed(1);
-    const isPositive = delta > 0;
-    const pct = Math.abs(delta) / m.inicial * 100;
-    const goodDelta = ['Pecho','Bíceps','Gemelo'].includes(m.label) ? isPositive : !isPositive;
+    const isPositive = parseFloat(delta) > 0;
+    const pct = Math.abs(parseFloat(delta)) / m.inicial * 100;
+    // Para cintura, cadera, grasa: bajar es positivo. Para pecho, bíceps, muslo: subir es positivo.
+    const growthMetrics = ['Pecho','Bíceps','Muslo','Gemelo','Hombros'];
+    const goodDelta = growthMetrics.includes(m.label) ? isPositive : !isPositive;
+    const unit = m.unidad || 'cm';
     return `
       <div class="card" style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-weight:600">${m.label}</span>
-          <div style="text-align:right">
-            <span class="badge ${goodDelta ? 'badge-green' : 'badge-red'}" style="font-size:12px">
-              ${isPositive ? '+' : ''}${delta} cm
-            </span>
-          </div>
+          <span class="badge ${goodDelta ? 'badge-green' : 'badge-red'}">
+            ${isPositive ? '+' : ''}${delta} ${unit}
+          </span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txt2);margin-bottom:6px">
-          <span>Inicial: ${m.inicial}</span>
-          <span>Actual: ${m.actual}</span>
+          <span>Inicial: ${m.inicial} ${unit}</span>
+          <span>Actual: ${m.actual} ${unit}</span>
         </div>
         <div class="prog-wrap">
           <div class="prog-bar ${goodDelta ? 'green' : ''}" style="width:${Math.min(pct * 10, 100)}%"></div>
@@ -1126,12 +1213,14 @@ async function saveMedicion() {
     if (val) { data[f.id] = parseFloat(val); anyFilled = true; }
   });
   if (!anyFilled) { toast('Introduce al menos una medición', 'err'); return; }
+  data.comentarios = document.getElementById('med-comentarios').value;
   await postToSheets('saveMedicion', data);
   toast('Medición guardada');
   MED_FIELDS.forEach(f => {
     const el = document.getElementById('med-' + f.id);
     if (el) el.value = '';
   });
+  document.getElementById('med-comentarios').value = '';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1139,7 +1228,6 @@ async function saveMedicion() {
 // ═══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
-  // Set today's date for peso
   const pesoFecha = document.getElementById('peso-fecha');
   if (pesoFecha) pesoFecha.value = new Date().toISOString().split('T')[0];
 });

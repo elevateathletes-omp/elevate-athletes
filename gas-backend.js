@@ -4,7 +4,7 @@
 // Web App (Execute as: Me | Who has access: Anyone)
 // ════════════════════════════════════════════════════════
 
-const SHEET_ID = 'TU_SHEET_ID_AQUI'; // mismo ID que en index.html
+const SHEET_ID = 'TU_SHEET_ID_AQUI'; // ID del Google Sheet (URL: /spreadsheets/d/ESTE_ID/edit)
 
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
@@ -45,24 +45,58 @@ function doPost(e) {
       data.rows.forEach((row, i) => {
         const ton = (parseFloat(row.kg)||0) * (parseFloat(row.reps)||0);
         totalTon += ton;
-        sheet.appendRow([data.date, data.session, i+1, row.kg, row.reps, row.rir, ton, '']);
+        sheet.appendRow([data.date, data.session, i+1, row.kg, row.reps, row.rir, ton, new Date().toISOString()]);
       });
-      // Update last row timestamp and total
       result = { ok: true, tonelaje: totalTon };
     }
 
     else if (action === 'saveMedicion') {
       const sheet = getOrCreateSheet(ss, `${clientId}_Mediciones`);
       if (sheet.getLastRow() === 0) {
-        sheet.appendRow(['Fecha','Cintura','Cadera','Pecho','Bíceps','Muslo','Gemelo','Hombros','Peso','Timestamp']);
+        sheet.appendRow([
+          'Fecha','Peso (kg)','% Grasa','Cintura','Cadera','Pecho',
+          'Hombros','Bíceps','Muslo','Gemelo','Comentarios','Timestamp'
+        ]);
       }
       sheet.appendRow([
-        data.fecha, data.cintura||'', data.cadera||'', data.pecho||'',
-        data.biceps||'', data.muslo||'', data.gemelo||'', data.hombros||'',
-        data.peso||'', new Date().toISOString()
+        data.fecha,
+        data.peso        || '',
+        data.grasa       || '',
+        data.cintura     || '',
+        data.cadera      || '',
+        data.pecho       || '',
+        data.hombros     || '',
+        data.biceps      || '',
+        data.muslo       || '',
+        data.gemelo      || '',
+        data.comentarios || '',
+        new Date().toISOString()
       ]);
       result = { ok: true };
     }
+
+    else if (action === 'saveDieta') {
+      const sheet = getOrCreateSheet(ss, `${clientId}_Dieta`);
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow([
+          'Fecha','Tipo día',
+          'Comida 1','Comida 2','Comida 3','Comida 4','Comida 5',
+          'Timestamp'
+        ]);
+      }
+      sheet.appendRow([
+        data.fecha,
+        data.tipo_dia   || '',
+        data.comida1    || '',
+        data.comida2    || '',
+        data.comida3    || '',
+        data.comida4    || '',
+        data.comida5    || '',
+        new Date().toISOString()
+      ]);
+      result = { ok: true };
+    }
+
   } catch(err) {
     result = { ok: false, error: err.message };
   }
